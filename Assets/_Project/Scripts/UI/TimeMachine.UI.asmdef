@@ -1,0 +1,21 @@
+{
+    "name": "TimeMachine.UI",
+    "rootNamespace": "TimeMachine.UI",
+    "references": [
+        "TimeMachine.Core",
+        "TimeMachine.Data",
+        "TimeMachine.Education",
+        "TimeMachine.Quests",
+        "TimeMachine.Gameplay",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,81 @@
+﻿event_id;category;file_name;duration_sec;loop;volume_db;import_settings;description
+MUS-01;Music;MUS_01_MainTheme_OkhtaMorning.ogg;96.0;true;-6;Streaming;Vorbis Q70;LoadInBackground;Главная тема меню (камерная гитара, мягкое фортепиано, маримба)
+MUS-02;Music;MUS_02_QuarterWalk_WarmWatercolor.ogg;140.0;true;-7;Streaming;Vorbis Q70;LoadInBackground;Тема исследования квартала 2027 года (Большая Охта)
+MUS-03;Music;MUS_03_Echoes1950_ChronoMystery.ogg;110.0;true;-7;Streaming;Vorbis Q70;LoadInBackground;Тема загадок прошлого и записки 1950 года
+MUS-04;Music;MUS_04_November1950_BolshayaOkhta.ogg;132.0;true;-7;Streaming;Vorbis Q70;LoadInBackground;Ретро-тема Ленинграда 14 ноября 1950 года
+MUS-05;Music;MUS_05_GoingHome_BolshayaOkhtaFinale.ogg;124.0;true;-6;Streaming;Vorbis Q70;LoadInBackground;Финальная тема возвращения домой и экрана эпилога
+SFX-01;SFX;SFX_UI_ButtonPaperTap.wav;0.20;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Нажатие картонной кнопки интерфейса
+SFX-02;SFX;SFX_UI_InteractInspect.wav;0.35;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Взаимодействие с объектом в 3D-мире
+SFX-03;SFX;SFX_UI_JournalOpen.wav;0.50;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Открытие «Дневника Сони»
+SFX-04;SFX;SFX_UI_JournalTabFlip.wav;0.30;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Перелистывание вкладки дневника
+SFX-05;SFX;SFX_UI_PencilStroke.wav;0.40;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Запись заметки карандашом
+SFX-06;SFX;SFX_Task_DialogOpen.wav;0.45;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Открытие тетрадного листа задачи ФГОС (приглушение музыки -18 дБ)
+SFX-07;SFX;SFX_Task_HintChime.wav;0.40;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Открытие подсказки 1–3 уровня
+SFX-08;SFX;SFX_Task_MorphemeSnap.wav;0.25;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Присоединение морфемы при сборке слова
+SFX-09;SFX;SFX_Task_SequenceClick.wav;0.25;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Выбор шага последовательности
+SFX-10;SFX;SFX_Task_CorrectMajorChord.wav;0.85;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Мажорный аккорд верного ответа (+XP)
+SFX-11;SFX;SFX_Task_SoftWoodTapRetry.wav;0.35;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Мягкий двойной стук дерева при повторной попытке (без стресса)
+SFX-12;SFX;SFX_Task_LessonFreePass.wav;0.55;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Мягкое завершение в режиме «Без урока»
+SFX-13;SFX;SFX_Step_Asphalt.wav;0.22;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Шаг Сони по асфальту и бетонным плитам
+SFX-14;SFX;SFX_Step_Gravel.wav;0.24;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Шаг Сони по гравийной дорожке у рельсов
+SFX-15;SFX;SFX_Step_ConcreteStairs.wav;0.25;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Шаг по бетонным ступеням убежища
+SFX-16;SFX;SFX_Step_WoodFloor.wav;0.22;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Шаг по полу кухни или деревянного мостика
+SFX-17;SFX;SFX_Backpack_Zipper.wav;0.45;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Открытие рюкзака с деталями «Зари-7»
+SFX-18;SFX;SFX_Skill_LevelUp.wav;0.75;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Повышение уровня ветки навыков
+SFX-19;SFX;SFX_Char_BarniHappyBark.wav;0.55;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Звонкий дружелюбный лай шпица Барни
+SFX-20;SFX;SFX_Char_BarniSniff.wav;0.45;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Сопение Барни при поиске тайника
+SFX-21;SFX;SFX_Char_ZhulikPurrBell.wav;0.65;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Мурлыканье кота Жулика и звон медальончика
+SFX-22;SFX;SFX_Voice_FriendsMarimba.wav;0.30;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Тембральная метка Саши, Кристины и Лёвы
+SFX-23;SFX;SFX_Voice_Sonya2027Flute.wav;0.30;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Тембральная метка Сони-2027 (флейта)
+SFX-24;SFX;SFX_Voice_Sonya2040Vibraphone.wav;0.35;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Тембральная метка Сони-2040 (виброфон)
+SFX-25;SFX;SFX_Voice_ArturCello.wav;0.35;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Тембральная метка смотрителя Артура
+SFX-26;SFX;SFX_Voice_BabushkaGuitar.wav;0.35;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Тембральная метка бабушки Зинаиды Петровны
+SFX-27;SFX;SFX_Q01_MilkBottleGlass.wav;0.60;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Звон стеклянной молочной бутылки у горки
+SFX-28;SFX;SFX_Q01_Note1950PaperUnfold.wav;0.70;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Хруст пожелтевшей записки 1950 года
+SFX-29;SFX;SFX_Q02_EntranceDoorTeleport.wav;0.65;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Вход в парадную ЖК «ЗимаЛето»
+SFX-30;SFX;SFX_Q02_ScrewdriverTurn.wav;0.50;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Откручивание крышки старой микроволновки
+SFX-31;SFX;SFX_Q02_MicrowaveMotorSpin.wav;0.80;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Плавное вращение моторчика СВЧ
+SFX-32;SFX;SFX_Q04_BrickTapBarrikada.wav;0.45;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Стук кирпича с клеймом «Баррикада»
+SFX-33;SFX;SFX_Q05_ArturKeysJingle.wav;0.65;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Звон связки ключей смотрителя Артура
+SFX-34;SFX;SFX_Q05_SwitchboardLatch.wav;0.50;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Открытие щитка в светлом подвале дома № 53
+SFX-35;SFX;SFX_Q06_CompassTick.wav;0.40;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Тиканье «Компаса поколений»
+SFX-36;SFX;SFX_Q07_DryStoneRemove.wav;0.75;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Разбор сухой кладки гранитного устоя моста
+SFX-37;SFX;SFX_Q07_ChronoCorePickup.wav;0.85;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Получение Хроно-сердцевины «Зари-7»
+SFX-38;SFX;SFX_Q08_ScaleWeigh3kg.wav;0.60;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Проверка общей массы 5 узлов (3 000 г)
+SFX-39;SFX;SFX_Q08_PassportStamp.wav;0.75;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Печать «Паспорта места»
+SFX-40;SFX;SFX_UI_RestBell20Min.wav;0.80;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Мягкий колокольчик напоминания об отдыхе (20 мин)
+SFX-41;SFX;SFX_Amb_HillLeavesWind.wav;18.0;true;-13;Streaming;Vorbis Q65;Mono;Лёгкий ветер в листве у горки и двора
+SFX-42;SFX;SFX_Amb_KitchenWarmHum.wav;16.0;true;-13;Streaming;Vorbis Q65;Mono;Спокойный домашний фон на кухне
+SFX-43;SFX;SFX_Amb_Shelter53Vent.wav;18.0;true;-13;Streaming;Vorbis Q65;Mono;Ровный гул вентиляции в светлом убежище дома № 53
+SFX-44;SFX;SFX_Amb_OkhtaRiverWater.wav;20.0;true;-13;Streaming;Vorbis Q65;Mono;Мягкий плеск воды реки Охты у моста
+SFX-45;SFX;SFX_Amb_DistantTrainHorn.wav;2.20;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Далёкий спокойный гудок тепловоза
+SFX-46;SFX;SFX_Q09_BunkerWorkshopDoor.wav;1.10;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Открытие Артуром двери технического отсека у горки
+SFX-47;SFX;SFX_Q09_WorkLampSwitchOn.wav;0.55;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Включение переносной заводской лампы над верстаком
+SFX-48;SFX;SFX_Q10_BlueprintUnrollTable.wav;0.75;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Разворачивание инженерной синьки 1950 года
+SFX-49;SFX;SFX_Q11_PartMagnetSnap.wav;0.35;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Фиксация детали в слоте чертежа AssemblyPuzzle
+SFX-50;SFX;SFX_Q11_Zarya7StartupHum.wav;1.80;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Запуск собранной «Зари-7» после 5 узлов
+SFX-51;SFX;SFX_Q12_ChronoDialClick.wav;0.60;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Выставление сдвига 77 лет на лимбе «Зари-7»
+SFX-52;SFX;SFX_Q12_CompassSyncBeacon.wav;1.50;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Синхронизация «Зари-7» и «Компаса поколений»
+SFX-53;SFX;SFX_Q13_BridgeResonancePing.wav;0.80;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Отклик резонанса у гранитного устоя моста через Охту
+SFX-54;SFX;SFX_Q14_FarewellNotebookWrite.wav;0.65;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Запись плана рассказа «Как мы провожали Соню»
+SFX-55;SFX;SFX_Q15_WatercolorJumpStart.wav;1.15;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Старт акварельно-золотистого перехода 2027 → 1950
+SFX-56;SFX;SFX_Q15_WatercolorEraArrival.wav;1.25;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Мягкое проявление эпохи после кросс-фейда
+SFX-57;SFX;SFX_Amb_Okhta1950_Morning.wav;26.0;true;-13;Streaming;Vorbis Q65;Mono;Эмбиент перегона у Зубова переулка в ноябре 1950 года
+SFX-58;SFX;SFX_Q16_BarrikadaShuntingTrain.wav;2.40;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Перестук колёс маневрового состава с плитами ЖБИ
+SFX-59;SFX;SFX_Q16_EnameledSignTap.wav;0.40;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Отзвук эмалированной таблички «ЗУБОВ ПЕРЕУЛОК»
+SFX-60;SFX;SFX_Q16_ShelterWoodenDoorCreak.wav;0.90;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Скрип открытой деревянной двери убежища в 1950 году
+SFX-61;SFX;SFX_Q17_Sonya2040Greeting.wav;0.85;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Тёплая встреча Сони-2027 и Сони-2040 в укрытии
+SFX-62;SFX;SFX_Q17_ArchiveBook1901Page.wav;0.60;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Перелистывание архивной книги завода 1901 года
+SFX-63;SFX;SFX_Q18_CopperWireMeasure.wav;0.55;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Отмеривание медного провода длиной 497 см
+SFX-64;SFX;SFX_Q18_CopperSheetCut.wav;0.70;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Вырезка медного теплового экрана (9 кв. дм)
+SFX-65;SFX;SFX_Q19_ShieldMountFasten.wav;0.65;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Крепление теплового экрана на «Зарю-7»
+SFX-66;SFX;SFX_Q19_GroundClampAttach.wav;0.45;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Подключение медного контура заземления
+SFX-67;SFX;SFX_Q20_DualBeaconLock.wav;0.95;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Синхронизация парного маячка с друзьями в 2027 году
+SFX-68;SFX;SFX_Q20_DualJumpReturn.wav;1.40;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Парный возврат обеих Сонь 1950 → 2027
+SFX-69;SFX;SFX_Q21_CompassReturnChime.wav;0.80;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Возврат «Компаса поколений» Соне-2027 у моста
+SFX-70;SFX;SFX_Q21_TimeLoopInsightHarps.wav;1.15;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Рассказ Сони-2040 о временной петле и учёбе
+SFX-71;SFX;SFX_Q22_EngineerBadgePin.wav;0.65;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Вручение памятного значка юного инженера
+SFX-72;SFX;SFX_Q22_Sonya2040Departure2040.wav;1.50;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Акварельно-золотистый старт Сони-2040 домой в 2040 год
+SFX-73;SFX;SFX_Q23_PlacePassportCompleteStamp.wav;0.75;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Финальная печать «Паспорта места» и отчёта для родителей
+SFX-74;SFX;SFX_Q24_HomeEntranceEveningBell.wav;1.35;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Возвращение к подъезду ЖК «ЗимаЛето» к ужину
+SFX-75;SFX;SFX_FreeRoam_DistrictExploreUnlock.wav;0.90;false;-4;DecompressOnLoad;Vorbis Q85;Mono;Разблокировка Свободного режима исследования района

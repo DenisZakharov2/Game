@@ -1,0 +1,16 @@
+{
+    "name": "TimeMachine.Data",
+    "rootNamespace": "TimeMachine.Data",
+    "references": [
+        "TimeMachine.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

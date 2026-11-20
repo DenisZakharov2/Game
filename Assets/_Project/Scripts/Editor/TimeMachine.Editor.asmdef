@@ -1,0 +1,26 @@
+{
+    "name": "TimeMachine.Editor",
+    "rootNamespace": "TimeMachine.Editor",
+    "references": [
+        "TimeMachine.Core",
+        "TimeMachine.Data",
+        "TimeMachine.Education",
+        "TimeMachine.Quests",
+        "TimeMachine.Gameplay",
+        "TimeMachine.UI",
+        "Unity.AI.Navigation",
+        "Unity.TextMeshPro",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
