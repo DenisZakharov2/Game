@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using TimeMachine.Core;
 using TimeMachine.Quests;
 
@@ -47,14 +47,15 @@ namespace TimeMachine.Gameplay
             }
 
             _triggeredInSession = true;
-            if (_questRunner == null)
-            {
-                _questRunner = FindAnyObjectByType<QuestRunner>();
-            }
             if (_questRunner != null)
             {
                 _questRunner.TryStartQuest(questId);
             }
+            else
+            {
+                GameEventBus.RaiseQuestStateChanged(questId);
+            }
+
             if (!string.IsNullOrEmpty(firstTaskId))
             {
                 GameEventBus.RaiseTaskRequested(firstTaskId);
