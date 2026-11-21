@@ -1,62 +1,64 @@
+using UnityEngine;
 using TimeMachine.Core;
 using TimeMachine.Quests;
-using UnityEngine;
 
 namespace TimeMachine.Gameplay
 {
-    [RequireComponent(typeof(Collider))]
+    [RequireComponent(typeof(SphereCollider))]
     public class QuestTrigger : MonoBehaviour
     {
-        [SerializeField] private string questId;
-        [SerializeField] private string initialTaskId;
-        [SerializeField] private bool triggerOnce = true;
+        [SerializeField] private string questId = QuestIds.Q01;
+        [SerializeField] private string firstTaskId = "T-RUS-01";
+        [SerializeField] private bool autoStartOnEnter = true;
 
         private QuestRunner _questRunner;
-        private bool _triggered;
+        private bool _triggeredInSession;
 
         public string QuestId => questId;
+        public string FirstTaskId => firstTaskId;
 
-        public void Configure(string targetQuestId, string firstTaskId, bool once = true)
+        public void Configure(string targetQuestId, string targetTaskId, bool autoStart)
         {
             questId = targetQuestId;
-            initialTaskId = firstTaskId;
-            triggerOnce = once;
+            firstTaskId = targetTaskId;
+            autoStartOnEnter = autoStart;
         }
 
-        public void Bind(QuestRunner questRunner)
+        public void BindQuestRunner(QuestRunner runner)
         {
-            _questRunner = questRunner;
+            _questRunner = runner;
         }
 
-        public void BindQuestRunner(QuestRunner questRunner)
+        private void Awake()
         {
-            _questRunner = questRunner;
-        }
-
-        public void ResetTrigger()
-        {
-            _triggered = false;
+            SphereCollider col = GetComponent<SphereCollider>();
+            col.isTrigger = true;
         }
 
         private void OnTriggerEnter(Collider other)
         {
-            if (triggerOnce && _triggered) return;
-            if (!other.TryGetComponent(out PlayerController _)) return;
+            if (!autoStartOnEnter || _triggeredInSession)
+            {
+                return;
+            }
+            if (!other.CompareTag("Player") && other.GetComponent<PlayerController>() == null)
+            {
+                return;
+            }
 
-            _triggered = true;
-
+            _triggeredInSession = true;
             if (_questRunner != null)
             {
-                _questRunner.StartQuest(questId);
+                _questRunner.TryStartQuest(questId);
             }
             else
             {
                 GameEventBus.RaiseQuestStateChanged(questId);
             }
 
-            if (!string.IsNullOrWhiteSpace(initialTaskId))
+            if (!string.IsNullOrEmpty(firstTaskId))
             {
-                GameEventBus.RaiseTaskRequested(initialTaskId);
+                GameEventBus.RaiseTaskRequested(firstTaskId);
             }
         }
     }
