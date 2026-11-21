@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -304,12 +304,7 @@ namespace TimeMachine.Editor
                 GameConstants.ItemIds.PartCapacitorBlock,
                 GameConstants.ItemIds.PartQuartzStabilizer
             };
-            string[] partNames = new[] { "Сердцевина
-600 г", "Мотор СВЧ
-500 г", "Катушка
-650 г", "Конденсатор
-400 г", "Стабилизатор
-850 г" };
+            string[] partNames = new[] { "Сердцевина\n600 г", "Мотор СВЧ\n500 г", "Катушка\n650 г", "Конденсатор\n400 г", "Стабилизатор\n850 г" };
             AssemblyPartDragItem[] dragItems = new AssemblyPartDragItem[5];
             for (int i = 0; i < 5; i++)
             {
