@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Text;
 using TMPro;
 using UnityEngine;
@@ -117,8 +117,7 @@ namespace TimeMachine.UI
             SetSubPanels(false, false);
             _sb.Clear();
             _sb.AppendLine("<b>ИСТОРИЯ МЕСТА: БОЛЬШАЯ ОХТА (1950 ↔ 2027)</b>");
-            _sb.AppendLine("Открываются только краеведческие карточки с подтверждённым источником:
-");
+            _sb.AppendLine("Открываются только краеведческие карточки с подтверждённым источником:\n");
 
             if (_loreJournal != null)
             {
@@ -134,8 +133,7 @@ namespace TimeMachine.UI
                         LoreCardData card = _verifiedCardsBuffer[i];
                         _sb.Append("• <b>").Append(card.title).Append("</b> (").Append(card.theme).AppendLine(")");
                         _sb.AppendLine(card.historicalText);
-                        _sb.Append("<i>Источник: ").Append(card.sourceUrl).AppendLine("</i>
-");
+                        _sb.Append("<i>Источник: ").Append(card.sourceUrl).AppendLine("</i>\n");
                     }
                 }
             }
@@ -150,8 +148,7 @@ namespace TimeMachine.UI
         {
             SetSubPanels(false, false);
             _sb.Clear();
-            _sb.AppendLine("<b>УРОКИ, НАВЫКИ И РЮКЗАК СОНИ</b>
-");
+            _sb.AppendLine("<b>УРОКИ, НАВЫКИ И РЮКЗАК СОНИ</b>\n");
 
             if (_gameState != null && _gameState.Data != null)
             {
@@ -159,8 +156,7 @@ namespace TimeMachine.UI
                 _sb.Append("• Знание (Математика): ур. ").Append(_gameState.GetSkillLevel(SkillBranch.Knowledge)).AppendLine(" / 3");
                 _sb.Append("• Речь (Русский язык): ур. ").Append(_gameState.GetSkillLevel(SkillBranch.Speech)).AppendLine(" / 3");
                 _sb.Append("• Город (Ориентирование): ур. ").Append(_gameState.GetSkillLevel(SkillBranch.City)).AppendLine(" / 3");
-                _sb.Append("• Знание места (Краеведение): ур. ").Append(_gameState.GetSkillLevel(SkillBranch.PlaceLore)).AppendLine(" / 3
-");
+                _sb.Append("• Знание места (Краеведение): ур. ").Append(_gameState.GetSkillLevel(SkillBranch.PlaceLore)).AppendLine(" / 3\n");
             }
 
             if (_inventory != null)
@@ -181,8 +177,7 @@ namespace TimeMachine.UI
             SetSubPanels(false, true);
             _sb.Clear();
             _sb.AppendLine("<b>ОТЧЁТ ДЛЯ РОДИТЕЛЕЙ (4 КЛАСС ФГОС НОО)</b>");
-            _sb.AppendLine("В игре нет школьных оценок «2» и «3», таймеров и штрафов за ошибки.
-");
+            _sb.AppendLine("В игре нет школьных оценок «2» и «3», таймеров и штрафов за ошибки.\n");
 
             if (_gameState != null && _gameState.Data != null)
             {
@@ -203,8 +198,7 @@ namespace TimeMachine.UI
                 _sb.Append("• Общий прогресс опыта: <b>").Append(_gameState.Data.totalXp).AppendLine(" XP</b>");
             }
 
-            _sb.AppendLine("
-<b>ПАСПОРТ МЕСТА: БОЛЬШАЯ ОХТА И МАГНИТОГОРСКАЯ УЛИЦА</b>");
+            _sb.AppendLine("\n<b>ПАСПОРТ МЕСТА: БОЛЬШАЯ ОХТА И МАГНИТОГОРСКАЯ УЛИЦА</b>");
             _sb.AppendLine("1950 г. (Зубов переулок, завод ЖБИ «Баррикада», осн. 1901 г.) ↔ 2027 г. (ул. Магнитогорская, ЖК «ЗимаЛето», мост через Охту).");
 
             if (journalBodyText != null)
