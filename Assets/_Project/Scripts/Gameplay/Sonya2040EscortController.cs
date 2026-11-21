@@ -16,7 +16,6 @@ namespace TimeMachine.Gameplay
     {
         [Header("Escort Tuning (14 November 1950 Layer)")]
         [SerializeField] private Transform sonya2027Transform;
-        [SerializeField] private float guideLeadDistance = 3.8f;
         [SerializeField] private float waitPlayerDistance = 6.2f;
         [SerializeField] private float pairFollowDistance = 1.8f;
         [SerializeField] private float warpCatchupDistance = 18.0f;
