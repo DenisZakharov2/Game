@@ -1,6 +1,5 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.AI;
-using TimeMachine.Core;
 
 namespace TimeMachine.Gameplay
 {
