@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.IO;
 using TimeMachine.Gameplay;
@@ -12,15 +12,38 @@ using UnityEngine.SceneManagement;
 
 namespace TimeMachine.Editor
 {
-    /// <summary>
-    /// Автоматический конвейер сборки сцены, портретного UI 9:16 и Android APK/AAB
-    /// в облачном режиме -batchmode (Unity Cloud Build Automation / cloud.unity.com).
-    /// </summary>
+    [InitializeOnLoad]
     public static class HeadlessCloudBuildRunner
     {
         private const string DualEraScenePath = "Assets/_Project/Scenes/Scene_Okhta_DualEra.unity";
         private const string DefaultApkOutputPath = "Builds/Android/TimeMachine_Okhta.apk";
         private const string DefaultAabOutputPath = "Builds/Android/TimeMachine_Okhta.aab";
+
+        static HeadlessCloudBuildRunner()
+        {
+            if (Application.isBatchMode)
+            {
+                EditorApplication.delayCall += PrepareCloudSceneIfMissing;
+            }
+        }
+
+        private static void PrepareCloudSceneIfMissing()
+        {
+            if (File.Exists(DualEraScenePath))
+            {
+                return;
+            }
+
+            try
+            {
+                PrepareSceneUiAndPlayerSettings(buildAppBundle: false);
+                Debug.Log("[CloudBuild] Автоподготовка сцены Scene_Okhta_DualEra.unity и UI 9:16 успешно завершена.");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[CloudBuild] Ошибка автоподготовки сцены: {ex}");
+            }
+        }
 
         [MenuItem("TimeMachine/Cloud Build Android APK (Headless)", priority = 90)]
         public static void BuildAndroidApkFromCloud()
@@ -34,35 +57,26 @@ namespace TimeMachine.Editor
             BuildAndroidPackage(buildAppBundle: true, fallbackOutputPath: DefaultAabOutputPath);
         }
 
-        private static void BuildAndroidPackage(bool buildAppBundle, string fallbackOutputPath)
+        private static void PrepareSceneUiAndPlayerSettings(bool buildAppBundle)
         {
-            Debug.Log("[CloudBuild] Старт автоматической сборки «Машина времени. Спасаем будущее в прошлом»...");
-
-            // 1. Генерация базовой Greybox-сцены и NavMesh
             EnsureDirectoryForAsset(DualEraScenePath);
             OkhtaGreyboxSceneBuilder.BuildGreyboxScene();
-
-            // 2. Инициализация менеджеров Глав 1-6 и слоёв эпох (2027 <-> 1950)
             SetupManagersAndEraLayers();
-
-            // 3. Автоматическая сборка портретного интерфейса Canvas_Main_9x16 (1080x2400, кнопки >= 48 dp)
             OkhtaUiCanvasBuilder.BuildPortraitUiCanvas();
 
-            // 4. Сохранение двухэпохальной сцены и добавление её в Build Settings
             Scene activeScene = SceneManager.GetActiveScene();
             if (activeScene.IsValid())
             {
                 EditorSceneManager.SaveScene(activeScene, DualEraScenePath);
             }
+
             EditorBuildSettings.scenes = new[]
             {
                 new EditorBuildSettingsScene(DualEraScenePath, true)
             };
 
-            // 5. Запуск автоматического валидатора (47 задач, 25 карточек, 24 квеста, 468 строк без 'ё' в 1950 г.)
             OkhtaFullGameValidator.ValidateFullGame();
 
-            // 6. Настройка целевой платформы Android (Portrait 9:16, IL2CPP, ARM64, API 26+, 100% офлайн)
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
             PlayerSettings.allowedAutorotateToPortrait = true;
             PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
@@ -72,8 +86,13 @@ namespace TimeMachine.Editor
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
             EditorUserBuildSettings.buildAppBundle = buildAppBundle;
+        }
 
-            // Определение пути вывода (учитываем путь, переданный Unity Build Automation)
+        private static void BuildAndroidPackage(bool buildAppBundle, string fallbackOutputPath)
+        {
+            Debug.Log("[CloudBuild] Старт автоматической сборки «Машина времени. Спасаем будущее в прошлом»...");
+            PrepareSceneUiAndPlayerSettings(buildAppBundle);
+
             string outputPath = EditorUserBuildSettings.GetBuildLocation(BuildTarget.Android);
             if (string.IsNullOrWhiteSpace(outputPath))
             {
