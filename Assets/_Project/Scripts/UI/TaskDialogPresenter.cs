@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -167,7 +167,7 @@ namespace TimeMachine.UI
 
             if (topicHeaderText != null)
             {
-                topicHeaderText.SetText("{0} • {1}", task.subject, task.fgosTopic);
+                topicHeaderText.SetText($"{task.subject} • {task.fgosTopic}");
             }
             if (questionBodyText != null)
             {
@@ -282,7 +282,7 @@ namespace TimeMachine.UI
                 }
                 if (feedbackText != null)
                 {
-                    feedbackText.SetText("Верно! {0}", _currentTask.explanation);
+                    feedbackText.SetText($"Верно! {_currentTask.explanation}");
                 }
                 if (_gameState != null)
                 {
