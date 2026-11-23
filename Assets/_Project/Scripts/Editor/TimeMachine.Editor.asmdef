@@ -4,13 +4,11 @@
     "references": [
         "TimeMachine.Core",
         "TimeMachine.Data",
-        "TimeMachine.Education",
         "TimeMachine.Quests",
         "TimeMachine.Gameplay",
         "TimeMachine.UI",
         "Unity.AI.Navigation",
-        "Unity.TextMeshPro",
-        "Unity.InputSystem"
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"
