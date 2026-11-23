@@ -1,8 +1,11 @@
-﻿using UnityEngine;
+using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.EventSystems;
+#if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
-using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
+using EnhancedTouch = UnityEngine.InputSystem.EnhancedTouch.Touch;
+#endif
 using TimeMachine.Core;
 
 namespace TimeMachine.Gameplay
@@ -22,11 +25,17 @@ namespace TimeMachine.Gameplay
         private Vector2 _moveOriginScreenPos;
         private Vector2 _lastLookScreenPos;
 
+        private Canvas _parentCanvas;
+        private EventSystem _cachedEventSystem;
+        private PointerEventData _pointerEventData;
+        private readonly List<RaycastResult> _uiRaycastResults = new List<RaycastResult>(8);
+
         public Vector2 MoveAxis => _moveAxis;
         public bool IsLeftHandedMode => leftHandedMode;
 
         private void Awake()
         {
+            CacheParentCanvas();
             if (joystickBase != null)
             {
                 joystickBase.gameObject.SetActive(false);
@@ -35,12 +44,22 @@ namespace TimeMachine.Gameplay
 
         private void OnEnable()
         {
-            EnhancedTouchSupport.Enable();
+#if ENABLE_INPUT_SYSTEM
+            if (!EnhancedTouchSupport.enabled)
+            {
+                EnhancedTouchSupport.Enable();
+            }
+#endif
         }
 
         private void OnDisable()
         {
-            EnhancedTouchSupport.Disable();
+#if ENABLE_INPUT_SYSTEM
+            if (EnhancedTouchSupport.enabled)
+            {
+                EnhancedTouchSupport.Disable();
+            }
+#endif
             ResetAxes();
         }
 
@@ -48,6 +67,7 @@ namespace TimeMachine.Gameplay
         {
             joystickBase = baseRect;
             joystickHandle = handleRect;
+            CacheParentCanvas();
             if (joystickBase != null)
             {
                 joystickBase.gameObject.SetActive(false);
@@ -99,14 +119,49 @@ namespace TimeMachine.Gameplay
             target.sizeDelta = size;
         }
 
+        private void CacheParentCanvas()
+        {
+            if (joystickBase != null)
+            {
+                _parentCanvas = joystickBase.GetComponentInParent<Canvas>();
+            }
+            if (_parentCanvas == null)
+            {
+                _parentCanvas = GetComponentInParent<Canvas>();
+            }
+        }
+
+        private float GetCanvasScaleFactor()
+        {
+            if (_parentCanvas == null)
+            {
+                CacheParentCanvas();
+            }
+            return (_parentCanvas != null && _parentCanvas.scaleFactor > 0.01f) ? _parentCanvas.scaleFactor : 1f;
+        }
+
         private void Update()
         {
-            var activeTouches = Touch.activeTouches;
+            bool handledTouch = false;
+
+#if ENABLE_INPUT_SYSTEM
+            var activeTouches = EnhancedTouch.activeTouches;
             if (activeTouches.Count > 0)
             {
-                ProcessTouches(activeTouches);
+                ProcessEnhancedTouches(activeTouches);
+                handledTouch = true;
             }
-            else
+#endif
+
+#if ENABLE_LEGACY_INPUT_MANAGER
+            if (!handledTouch && Input.touchCount > 0)
+            {
+                ProcessLegacyTouches();
+                handledTouch = true;
+            }
+#endif
+
+            if (!handledTouch)
             {
                 if (_moveFingerId != -1 || _lookFingerId != -1)
                 {
@@ -116,74 +171,140 @@ namespace TimeMachine.Gameplay
             }
         }
 
-        private void ProcessTouches(UnityEngine.InputSystem.Utilities.ReadOnlyArray<Touch> touches)
+#if ENABLE_INPUT_SYSTEM
+        private void ProcessEnhancedTouches(UnityEngine.InputSystem.Utilities.ReadOnlyArray<EnhancedTouch> touches)
         {
-            float halfWidth = Screen.width * 0.5f;
-
             for (int i = 0; i < touches.Count; i++)
             {
-                Touch touch = touches[i];
+                EnhancedTouch touch = touches[i];
                 int fingerId = touch.finger.index;
                 Vector2 pos = touch.screenPosition;
 
                 if (touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
                 {
-                    if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(fingerId))
-                    {
-                        continue;
-                    }
-
-                    bool isMoveZone = leftHandedMode ? (pos.x >= halfWidth) : (pos.x < halfWidth);
-                    if (isMoveZone && _moveFingerId == -1)
-                    {
-                        _moveFingerId = fingerId;
-                        _moveOriginScreenPos = pos;
-                        _moveAxis = Vector2.zero;
-                        ShowJoystick(pos);
-                    }
-                    else if (!isMoveZone && _lookFingerId == -1)
-                    {
-                        _lookFingerId = fingerId;
-                        _lastLookScreenPos = pos;
-                    }
+                    HandleTouchBegan(fingerId, pos);
                 }
                 else if (touch.phase == UnityEngine.InputSystem.TouchPhase.Moved ||
                          touch.phase == UnityEngine.InputSystem.TouchPhase.Stationary)
                 {
-                    if (fingerId == _moveFingerId)
-                    {
-                        Vector2 offset = pos - _moveOriginScreenPos;
-                        Vector2 clamped = Vector2.ClampMagnitude(offset, joystickRadiusPx);
-                        _moveAxis = clamped / joystickRadiusPx;
-                        if (joystickHandle != null)
-                        {
-                            joystickHandle.anchoredPosition = clamped;
-                        }
-                    }
-                    else if (fingerId == _lookFingerId)
-                    {
-                        _lookDelta += pos - _lastLookScreenPos;
-                        _lastLookScreenPos = pos;
-                    }
+                    HandleTouchMoved(fingerId, pos);
                 }
                 else if (touch.phase == UnityEngine.InputSystem.TouchPhase.Ended ||
                          touch.phase == UnityEngine.InputSystem.TouchPhase.Canceled)
                 {
-                    if (fingerId == _moveFingerId)
-                    {
-                        _moveFingerId = -1;
-                        _moveAxis = Vector2.zero;
-                        if (joystickBase != null)
-                        {
-                            joystickBase.gameObject.SetActive(false);
-                        }
-                    }
-                    else if (fingerId == _lookFingerId)
-                    {
-                        _lookFingerId = -1;
-                    }
+                    HandleTouchEnded(fingerId);
                 }
             }
+        }
+#endif
+
+#if ENABLE_LEGACY_INPUT_MANAGER
+        private void ProcessLegacyTouches()
+        {
+            int count = Input.touchCount;
+            for (int i = 0; i < count; i++)
+            {
+                UnityEngine.Touch touch = Input.GetTouch(i);
+                int fingerId = touch.fingerId;
+                Vector2 pos = touch.position;
+
+                if (touch.phase == UnityEngine.TouchPhase.Began)
+                {
+                    HandleTouchBegan(fingerId, pos);
+                }
+                else if (touch.phase == UnityEngine.TouchPhase.Moved ||
+                         touch.phase == UnityEngine.TouchPhase.Stationary)
+                {
+                    HandleTouchMoved(fingerId, pos);
+                }
+                else if (touch.phase == UnityEngine.TouchPhase.Ended ||
+                         touch.phase == UnityEngine.TouchPhase.Canceled)
+                {
+                    HandleTouchEnded(fingerId);
+                }
+            }
+        }
+#endif
+
+        private void HandleTouchBegan(int fingerId, Vector2 pos)
+        {
+            if (IsScreenPosOverUi(pos))
+            {
+                return;
+            }
+
+            float halfWidth = Screen.width * 0.5f;
+            bool isMoveZone = leftHandedMode ? (pos.x >= halfWidth) : (pos.x < halfWidth);
+            if (isMoveZone && _moveFingerId == -1)
+            {
+                _moveFingerId = fingerId;
+                _moveOriginScreenPos = pos;
+                _moveAxis = Vector2.zero;
+                ShowJoystick(pos);
+            }
+            else if (!isMoveZone && _lookFingerId == -1)
+            {
+                _lookFingerId = fingerId;
+                _lastLookScreenPos = pos;
+            }
+        }
+
+        private void HandleTouchMoved(int fingerId, Vector2 pos)
+        {
+            if (fingerId == _moveFingerId)
+            {
+                float scaleFactor = GetCanvasScaleFactor();
+                float radiusScreenPx = Mathf.Max(24f, joystickRadiusPx * scaleFactor);
+                Vector2 offset = pos - _moveOriginScreenPos;
+                Vector2 clamped = Vector2.ClampMagnitude(offset, radiusScreenPx);
+                _moveAxis = clamped / radiusScreenPx;
+                if (joystickHandle != null)
+                {
+                    joystickHandle.anchoredPosition = clamped / scaleFactor;
+                }
+            }
+            else if (fingerId == _lookFingerId)
+            {
+                _lookDelta += pos - _lastLookScreenPos;
+                _lastLookScreenPos = pos;
+            }
+        }
+
+        private void HandleTouchEnded(int fingerId)
+        {
+            if (fingerId == _moveFingerId)
+            {
+                _moveFingerId = -1;
+                _moveAxis = Vector2.zero;
+                if (joystickBase != null)
+                {
+                    joystickBase.gameObject.SetActive(false);
+                }
+            }
+            else if (fingerId == _lookFingerId)
+            {
+                _lookFingerId = -1;
+            }
+        }
+
+        private bool IsScreenPosOverUi(Vector2 screenPosition)
+        {
+            EventSystem es = EventSystem.current;
+            if (es == null)
+            {
+                return false;
+            }
+
+            if (_pointerEventData == null || _cachedEventSystem != es)
+            {
+                _cachedEventSystem = es;
+                _pointerEventData = new PointerEventData(es);
+            }
+
+            _pointerEventData.position = screenPosition;
+            _uiRaycastResults.Clear();
+            es.RaycastAll(_pointerEventData, _uiRaycastResults);
+            return _uiRaycastResults.Count > 0;
         }
 
         private void ShowJoystick(Vector2 screenPos)
@@ -203,17 +324,21 @@ namespace TimeMachine.Gameplay
         private void ProcessEditorKeyboardFallback()
         {
 #if UNITY_EDITOR || UNITY_STANDALONE
-            Keyboard kb = Keyboard.current;
-            if (kb == null)
-            {
-                return;
-            }
             float x = 0f;
             float y = 0f;
-            if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) x -= 1f;
-            if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) x += 1f;
-            if (kb.sKey.isPressed || kb.downArrowKey.isPressed) y -= 1f;
-            if (kb.wKey.isPressed || kb.upArrowKey.isPressed) y += 1f;
+#if ENABLE_INPUT_SYSTEM
+            Keyboard kb = Keyboard.current;
+            if (kb != null)
+            {
+                if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) x -= 1f;
+                if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) x += 1f;
+                if (kb.sKey.isPressed || kb.downArrowKey.isPressed) y -= 1f;
+                if (kb.wKey.isPressed || kb.upArrowKey.isPressed) y += 1f;
+            }
+#elif ENABLE_LEGACY_INPUT_MANAGER
+            x = Input.GetAxisRaw("Horizontal");
+            y = Input.GetAxisRaw("Vertical");
+#endif
             Vector2 dir = new Vector2(x, y);
             _moveAxis = dir.sqrMagnitude > 1f ? dir.normalized : dir;
 #endif
