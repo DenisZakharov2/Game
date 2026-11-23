@@ -47,8 +47,8 @@ namespace TimeMachine.UI
                 camGo.tag = "MainCamera";
                 cam = camGo.AddComponent<Camera>();
                 camGo.AddComponent<AudioListener>();
-                camGo.transform.position = new Vector3(0f, 3.6f, -12.5f);
-                camGo.transform.LookAt(new Vector3(0f, 1.4f, -4f));
+                camGo.transform.position = new Vector3(0f, 3.5f, -12.7f);
+                camGo.transform.LookAt(new Vector3(0f, 1.5f, -5.0f));
             }
 
             if (RenderSettings.skybox == null || cam.clearFlags == CameraClearFlags.Skybox)
@@ -86,8 +86,7 @@ namespace TimeMachine.UI
             }
 
             MeshRenderer[] renderers = UnityEngine.Object.FindObjectsByType<MeshRenderer>(
-                FindObjectsInactive.Include,
-                FindObjectsSortMode.None);
+                FindObjectsInactive.Include);
 
             Material defaultFallback = null;
             for (int i = 0; i < renderers.Length; i++)
@@ -149,8 +148,7 @@ namespace TimeMachine.UI
             }
 
             TMP_Text[] allTexts = UnityEngine.Object.FindObjectsByType<TMP_Text>(
-                FindObjectsInactive.Include,
-                FindObjectsSortMode.None);
+                FindObjectsInactive.Include);
 
             HashSet<TMP_FontAsset> patchedFonts = new HashSet<TMP_FontAsset>();
             for (int i = 0; i < allTexts.Length; i++)
