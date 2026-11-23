@@ -4,7 +4,9 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
+#if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem.UI;
+#endif
 using UnityEngine.UI;
 using TimeMachine.Core;
 using TimeMachine.Gameplay;
@@ -27,13 +29,7 @@ namespace TimeMachine.Editor
         [MenuItem("TimeMachine/Build Portrait UI Canvas (9x16)")]
         public static void BuildPortraitUiCanvas()
         {
-            EventSystem existingEs = Object.FindAnyObjectByType<EventSystem>();
-            if (existingEs == null)
-            {
-                var esGo = new GameObject("EventSystem");
-                esGo.AddComponent<EventSystem>();
-                esGo.AddComponent<InputSystemUIInputModule>();
-            }
+            EnsureEventSystem();
 
             GameObject oldCanvas = GameObject.Find("Canvas_Main_9x16");
             if (oldCanvas != null)
@@ -58,6 +54,7 @@ namespace TimeMachine.Editor
             RectTransform touchZones = CreateRect("TouchZones", canvasGo.transform);
             StretchFull(touchZones);
             var touchInput = touchZones.gameObject.AddComponent<TouchInput>();
+
             RectTransform joyBase = CreateRect("JoystickBase", touchZones);
             joyBase.sizeDelta = new Vector2(220f, 220f);
             var joyBaseImg = joyBase.gameObject.AddComponent<Image>();
@@ -108,6 +105,7 @@ namespace TimeMachine.Editor
             pauseBtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(-12f, 0f);
 
             RectTransform compassRoot = CreatePanel("CompassWidget", hudRoot, Note1950Bg);
+            compassRoot.GetComponent<Image>().raycastTarget = false;
             compassRoot.anchorMin = new Vector2(0f, 1f);
             compassRoot.anchorMax = new Vector2(0f, 1f);
             compassRoot.pivot = new Vector2(0f, 1f);
@@ -115,12 +113,16 @@ namespace TimeMachine.Editor
             compassRoot.sizeDelta = new Vector2(160f, 160f);
             RectTransform compassNeedle = CreateRect("CompassNeedle", compassRoot);
             compassNeedle.sizeDelta = new Vector2(14f, 84f);
-            compassNeedle.gameObject.AddComponent<Image>().color = BtnAccentRed;
+            var needleImg = compassNeedle.gameObject.AddComponent<Image>();
+            needleImg.color = BtnAccentRed;
+            needleImg.raycastTarget = false;
             TMP_Text compassDist = CreateLabel("CompassDistanceText", compassRoot, "150 м", 26f, InkDark);
             compassDist.alignment = TextAlignmentOptions.Bottom;
             StretchFull(compassDist.rectTransform);
+            compassRoot.gameObject.SetActive(false);
 
             RectTransform speechRoot = CreatePanel("DialogueBubble", hudRoot, PaperBg);
+            speechRoot.GetComponent<Image>().raycastTarget = false;
             speechRoot.anchorMin = new Vector2(0.5f, 0f);
             speechRoot.anchorMax = new Vector2(0.5f, 0f);
             speechRoot.pivot = new Vector2(0.5f, 0f);
@@ -136,6 +138,7 @@ namespace TimeMachine.Editor
             speechMsgText.rectTransform.anchorMax = new Vector2(1f, 0.65f);
             speechMsgText.rectTransform.offsetMin = new Vector2(24f, 12f);
             speechMsgText.rectTransform.offsetMax = new Vector2(-24f, -4f);
+            speechRoot.gameObject.SetActive(false);
 
             Button actBtn = CreateButton("Btn_Interact", hudRoot, "Осмотреть", BtnAccentRed, WhiteText, new Vector2(360f, 144f));
             RectTransform actRect = actBtn.GetComponent<RectTransform>();
@@ -311,7 +314,9 @@ namespace TimeMachine.Editor
                 RectTransform card = CreatePanel($"Card_Part_{i + 1}", wbRoot, PaperBg);
                 card.sizeDelta = new Vector2(180f, 200f);
                 card.anchoredPosition = new Vector2(-380f + i * 190f, -260f);
-                CreateLabel("Label", card, partNames[i], 24f, InkDark);
+                TMP_Text cardLabel = CreateLabel("Label", card, partNames[i], 24f, InkDark);
+                cardLabel.alignment = TextAlignmentOptions.Center;
+                StretchFull(cardLabel.rectTransform);
                 var drag = card.gameObject.AddComponent<AssemblyPartDragItem>();
                 drag.Configure(partIds[i], wbPresenter);
                 dragItems[i] = drag;
@@ -319,6 +324,8 @@ namespace TimeMachine.Editor
 
             RectTransform ghostRect = CreatePanel("DragGhostIcon", wbRoot, BtnSage);
             ghostRect.sizeDelta = new Vector2(150f, 150f);
+            ghostRect.GetComponent<Image>().raycastTarget = false;
+            ghostRect.gameObject.SetActive(false);
 
             Button wbFriend = CreateButton("Btn_AskFriend", wbRoot, "Друг", BtnBlue, WhiteText, new Vector2(280f, 136f));
             wbFriend.GetComponent<RectTransform>().anchoredPosition = new Vector2(-310f, -480f);
@@ -333,6 +340,7 @@ namespace TimeMachine.Editor
             stampText.rectTransform.sizeDelta = new Vector2(800f, 640f);
             Button closeStamp = CreateButton("Btn_CloseStamp", stampModal, "Понятно", BtnSage, WhiteText, new Vector2(320f, 136f));
             closeStamp.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, -340f);
+            stampModal.gameObject.SetActive(false);
 
             wbPresenter.ConfigureUiReferences(
                 wbRoot.gameObject, wbStep, wbMass, wbBanner, wbClose, wbSlots, wbSlotBgs, dragItems, ghostRect,
@@ -356,16 +364,22 @@ namespace TimeMachine.Editor
             jConfirm.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, -260f);
             Button jCancel = CreateButton("Btn_CancelJump", confirmPanel, "Отмена", BtnBlue, WhiteText, new Vector2(320f, 136f));
             jCancel.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, -430f);
+            confirmPanel.gameObject.SetActive(false);
 
             RectTransform overlayRect = CreatePanel("WatercolorTransitionOverlay", jumpRoot, GoldFade);
             StretchFull(overlayRect);
+            overlayRect.GetComponent<Image>().raycastTarget = false;
             var overlayGroup = overlayRect.gameObject.AddComponent<CanvasGroup>();
+            overlayGroup.alpha = 0f;
+            overlayGroup.interactable = false;
+            overlayGroup.blocksRaycasts = false;
             TMP_Text subTitle = CreateLabel("TransitionSubtitleText", overlayRect, "2027 → 14 ноября 1950", 46f, InkDark);
             subTitle.alignment = TextAlignmentOptions.Center;
             subTitle.rectTransform.anchoredPosition = new Vector2(0f, 120f);
             TMP_Text locHint = CreateLabel("TransitionLocationHintText", overlayRect, "Большая Охта", 32f, InkDark);
             locHint.alignment = TextAlignmentOptions.Center;
             locHint.rectTransform.anchoredPosition = new Vector2(0f, 20f);
+            overlayRect.gameObject.SetActive(false);
 
             jumpPresenter.ConfigureUiReferences(
                 confirmPanel.gameObject, jHeader, jDate, jRoles, jConfirm, jCancel, overlayGroup, subTitle, locHint);
@@ -419,6 +433,31 @@ namespace TimeMachine.Editor
             Debug.Log("[TimeMachine] Портретный интерфейс Canvas_Main_9x16 (1080x2400, кнопки >= 48 dp) успешно собран!");
         }
 
+        private static void EnsureEventSystem()
+        {
+            EventSystem existingEs = Object.FindAnyObjectByType<EventSystem>();
+            GameObject esGo;
+            if (existingEs == null)
+            {
+                esGo = new GameObject("EventSystem");
+                esGo.AddComponent<EventSystem>();
+            }
+            else
+            {
+                esGo = existingEs.gameObject;
+            }
+
+            if (esGo.GetComponent<BaseInputModule>() == null)
+            {
+#if ENABLE_INPUT_SYSTEM
+                var inputModule = esGo.AddComponent<InputSystemUIInputModule>();
+                inputModule.AssignDefaultActions();
+#else
+                esGo.AddComponent<StandaloneInputModule>();
+#endif
+            }
+        }
+
         private static RectTransform CreateRect(string name, Transform parent)
         {
             var go = new GameObject(name);
@@ -452,6 +491,7 @@ namespace TimeMachine.Editor
             tmp.color = color;
             tmp.alignment = TextAlignmentOptions.Left;
             tmp.textWrappingMode = TextWrappingModes.Normal;
+            tmp.raycastTarget = false;
             return tmp;
         }
 
@@ -460,8 +500,10 @@ namespace TimeMachine.Editor
             RectTransform rt = CreatePanel(name, parent, bgColor);
             rt.sizeDelta = new Vector2(Mathf.Max(132f, size.x), Mathf.Max(132f, size.y));
             var btn = rt.gameObject.AddComponent<Button>();
+            btn.targetGraphic = rt.GetComponent<Image>();
             TMP_Text tmp = CreateLabel("Label", rt, label, 30f, textColor);
             tmp.alignment = TextAlignmentOptions.Center;
+            tmp.raycastTarget = false;
             StretchFull(tmp.rectTransform);
             return btn;
         }
@@ -476,11 +518,13 @@ namespace TimeMachine.Editor
             StretchFull(textArea);
             textArea.offsetMin = new Vector2(20f, 10f);
             textArea.offsetMax = new Vector2(-20f, -10f);
+            textArea.gameObject.AddComponent<RectMask2D>();
 
             TMP_Text textComp = CreateLabel("Text", textArea, "", 36f, InkDark);
             StretchFull(textComp.rectTransform);
 
             var field = rt.gameObject.AddComponent<TMP_InputField>();
+            field.targetGraphic = rt.GetComponent<Image>();
             field.textViewport = textArea;
             field.textComponent = textComp;
             return field;
