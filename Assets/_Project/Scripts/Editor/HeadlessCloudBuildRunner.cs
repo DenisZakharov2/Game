@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Text;
+using TMPro;
 using TimeMachine.Core;
 using TimeMachine.Gameplay;
 using TimeMachine.UI;
@@ -12,6 +13,7 @@ using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
 namespace TimeMachine.Editor
@@ -26,11 +28,30 @@ namespace TimeMachine.Editor
         }
     }
 
+    public class CloudSceneBuildProcessor : IProcessSceneWithReport
+    {
+        public int callbackOrder => 0;
+
+        public void OnProcessScene(Scene scene, BuildReport report)
+        {
+            if (report == null)
+            {
+                return;
+            }
+
+            HeadlessCloudBuildRunner.EnsureScenePopulatedInMemory(scene, allowAssetSaving: false);
+        }
+    }
+
     public static class HeadlessCloudBuildRunner
     {
         private const string DualEraScenePath = "Assets/_Project/Scenes/Scene_Okhta_DualEra.unity";
+        private const string MaterialsFolder = "Assets/_Project/Materials";
+        private const string RuntimeFontAssetPath = "Assets/_Project/Resources/Fonts/Okhta_Runtime_SDF.asset";
         private const string DefaultApkOutputPath = "Builds/Android/TimeMachine_Okhta.apk";
         private const string DefaultAabOutputPath = "Builds/Android/TimeMachine_Okhta.aab";
+
+        private static readonly Color32 PetersburgSkyColor = new Color32(0xB8, 0xCE, 0xE0, 0xFF);
 
         private const string MinimalUnity6SceneYaml =
 @"%YAML 1.1
@@ -198,7 +219,7 @@ NavMeshSettings:
                     AssetDatabase.SaveAssets();
                 }
 
-                Debug.Log($"[CloudBuild] Сцена зарегистрирована в EditorBuildSettings: path='{resolvedScenePath}', guid='{expectedGuid}', totalScenes={EditorBuildSettings.scenes.Length}");
+                Debug.Log($"[CloudBuild] Сцена зарегистрирована: path='{resolvedScenePath}', guid='{expectedGuid}'");
             }
             catch (Exception ex)
             {
@@ -213,7 +234,7 @@ NavMeshSettings:
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning($"[CloudBuild] Предупреждение при раннем применении PlayerSettings: {ex.Message}");
+                    Debug.LogWarning($"[CloudBuild] Предупреждение PlayerSettings: {ex.Message}");
                 }
             }
         }
@@ -233,6 +254,7 @@ NavMeshSettings:
         public static void PopulateActiveSceneIfEmpty()
         {
             string scenePath = ResolveOrCreateDualEraScene() ?? DualEraScenePath;
+            ApplyAndroidPortraitSettings();
 
             Scene activeScene = SceneManager.GetActiveScene();
             if (!activeScene.IsValid() || !string.Equals(activeScene.path, scenePath, StringComparison.OrdinalIgnoreCase))
@@ -240,25 +262,15 @@ NavMeshSettings:
                 activeScene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
             }
 
-            if (GameObject.Find("--- MANAGERS ---") != null)
-            {
-                Debug.Log("[CloudBuild] Сцена Scene_Okhta_DualEra уже наполнена, повторная генерация не требуется.");
-                return;
-            }
+            EnsureScenePopulatedInMemory(activeScene, allowAssetSaving: true);
 
-            Debug.Log("[CloudBuild] Автосборка сцены Scene_Okhta_DualEra и портретного UI 9:16...");
-
-            ApplyAndroidPortraitSettings();
-            BuildGreyboxIntoActiveScene();
-            SetupManagersActorsAndUi();
-
-            activeScene = SceneManager.GetActiveScene();
             if (activeScene.IsValid())
             {
                 EnsureDirectoryForAsset(scenePath);
                 EditorSceneManager.MarkSceneDirty(activeScene);
                 EditorSceneManager.SaveScene(activeScene, scenePath);
                 AssetDatabase.SaveAssets();
+                AssetDatabase.ImportAsset(scenePath, ImportAssetOptions.ForceSynchronousImport);
             }
 
             try
@@ -271,6 +283,276 @@ NavMeshSettings:
             }
 
             Debug.Log("[CloudBuild] Сцена и UI 9:16 сохранены и готовы к упаковке в .apk!");
+        }
+
+        public static void EnsureScenePopulatedInMemory(Scene scene, bool allowAssetSaving)
+        {
+            if (!scene.IsValid())
+            {
+                return;
+            }
+
+            SceneManager.SetActiveScene(scene);
+
+            if (!HasRootObject(scene, "--- MANAGERS ---"))
+            {
+                Debug.Log($"[CloudBuild] Наполнение сцены '{scene.name}' (allowAssetSaving={allowAssetSaving})...");
+                BuildGreyboxIntoActiveScene(allowAssetSaving);
+                SetupManagersActorsAndUi(allowAssetSaving);
+            }
+
+            TMP_FontAsset fontAsset = EnsureRuntimeTmpFontAsset(allowAssetSaving);
+            EnsureSceneCameraAndMaterials(scene, allowAssetSaving);
+            ApplyFontToSceneTmpTexts(scene, fontAsset);
+
+            int rootCount = scene.rootCount;
+            int camCount = CountComponentsInScene<Camera>(scene);
+            int canvasCount = CountComponentsInScene<Canvas>(scene);
+            int tmpCount = CountComponentsInScene<TMP_Text>(scene);
+            Debug.Log($"[CloudBuild] Проверка сцены '{scene.name}': roots={rootCount}, cameras={camCount}, canvases={canvasCount}, tmpTexts={tmpCount}, srpActive={IsSrpActive()}");
+        }
+
+        private static bool HasRootObject(Scene scene, string rootName)
+        {
+            GameObject[] roots = scene.GetRootGameObjects();
+            for (int i = 0; i < roots.Length; i++)
+            {
+                if (roots[i] != null && string.Equals(roots[i].name, rootName, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static int CountComponentsInScene<T>(Scene scene) where T : Component
+        {
+            int count = 0;
+            GameObject[] roots = scene.GetRootGameObjects();
+            for (int i = 0; i < roots.Length; i++)
+            {
+                if (roots[i] != null)
+                {
+                    count += roots[i].GetComponentsInChildren<T>(includeInactive: true).Length;
+                }
+            }
+            return count;
+        }
+
+        private static bool IsSrpActive()
+        {
+            return GraphicsSettings.defaultRenderPipeline != null || QualitySettings.renderPipeline != null;
+        }
+
+        private static Shader ResolveActivePipelineShader()
+        {
+            if (IsSrpActive())
+            {
+                return Shader.Find("Universal Render Pipeline/Lit")
+                    ?? Shader.Find("Universal Render Pipeline/Simple Lit")
+                    ?? Shader.Find("Standard")
+                    ?? Shader.Find("Sprites/Default");
+            }
+
+            return Shader.Find("Standard")
+                ?? Shader.Find("Mobile/Diffuse")
+                ?? Shader.Find("Legacy Shaders/Diffuse")
+                ?? Shader.Find("Sprites/Default");
+        }
+
+        private static Material CreateOrLoadMaterial(string matName, Color32 color, bool allowAssetSaving)
+        {
+            string assetPath = $"{MaterialsFolder}/{matName}.mat";
+            Material existing = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
+            Shader targetShader = ResolveActivePipelineShader();
+
+            if (existing != null)
+            {
+                if (targetShader != null && existing.shader != targetShader)
+                {
+                    existing.shader = targetShader;
+                }
+                ApplyMatProperties(existing, color);
+                if (allowAssetSaving)
+                {
+                    EditorUtility.SetDirty(existing);
+                }
+                return existing;
+            }
+
+            if (targetShader == null)
+            {
+                return null;
+            }
+
+            Material mat = new Material(targetShader) { name = matName };
+            ApplyMatProperties(mat, color);
+
+            if (allowAssetSaving)
+            {
+                EnsureDirectoryForAsset(assetPath);
+                AssetDatabase.CreateAsset(mat, assetPath);
+                EditorUtility.SetDirty(mat);
+            }
+
+            return mat;
+        }
+
+        private static void ApplyMatProperties(Material mat, Color32 color)
+        {
+            if (mat == null) return;
+            mat.color = color;
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
+            if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0f);
+            if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0f);
+        }
+
+        private static TMP_FontAsset EnsureRuntimeTmpFontAsset(bool allowAssetSaving)
+        {
+            TMP_FontAsset existing = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(RuntimeFontAssetPath);
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            try
+            {
+                Font baseFont = null;
+                try
+                {
+                    baseFont = Font.CreateDynamicFontFromOSFont(new[] { "Arial", "Segoe UI", "Tahoma", "Roboto" }, 36);
+                }
+                catch
+                {
+                    baseFont = null;
+                }
+
+                if (baseFont == null)
+                {
+                    baseFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                }
+
+                if (baseFont == null)
+                {
+                    return null;
+                }
+
+                TMP_FontAsset fontAsset = TMP_FontAsset.CreateFontAsset(baseFont);
+                if (fontAsset == null)
+                {
+                    return null;
+                }
+
+                fontAsset.name = "Okhta_Runtime_SDF";
+
+                if (allowAssetSaving)
+                {
+                    EnsureDirectoryForAsset(RuntimeFontAssetPath);
+                    AssetDatabase.CreateAsset(fontAsset, RuntimeFontAssetPath);
+
+                    if (fontAsset.atlasTextures != null)
+                    {
+                        for (int i = 0; i < fontAsset.atlasTextures.Length; i++)
+                        {
+                            Texture2D atlas = fontAsset.atlasTextures[i];
+                            if (atlas != null && !AssetDatabase.Contains(atlas))
+                            {
+                                atlas.name = $"Okhta_Runtime_SDF_Atlas_{i}";
+                                AssetDatabase.AddObjectToAsset(atlas, fontAsset);
+                            }
+                        }
+                    }
+
+                    if (fontAsset.material != null && !AssetDatabase.Contains(fontAsset.material))
+                    {
+                        fontAsset.material.name = "Okhta_Runtime_SDF_Material";
+                        AssetDatabase.AddObjectToAsset(fontAsset.material, fontAsset);
+                    }
+
+                    EditorUtility.SetDirty(fontAsset);
+                }
+
+                return fontAsset;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[CloudBuild] Не удалось создать TMP_FontAsset в редакторе (будет создан в рантайме на Android): {ex.Message}");
+                return null;
+            }
+        }
+
+        private static void EnsureSceneCameraAndMaterials(Scene scene, bool allowAssetSaving)
+        {
+            Camera foundCam = null;
+            Material fallbackMat = CreateOrLoadMaterial("Mat_Fallback_Beige", new Color32(0xC8, 0xC2, 0xB8, 0xFF), allowAssetSaving);
+
+            GameObject[] roots = scene.GetRootGameObjects();
+            for (int i = 0; i < roots.Length; i++)
+            {
+                if (roots[i] == null) continue;
+
+                Camera[] cams = roots[i].GetComponentsInChildren<Camera>(includeInactive: true);
+                for (int c = 0; c < cams.Length; c++)
+                {
+                    if (cams[c] != null)
+                    {
+                        foundCam = cams[c];
+                        if (RenderSettings.skybox == null)
+                        {
+                            cams[c].clearFlags = CameraClearFlags.SolidColor;
+                            cams[c].backgroundColor = PetersburgSkyColor;
+                        }
+                    }
+                }
+
+                if (fallbackMat != null)
+                {
+                    MeshRenderer[] renderers = roots[i].GetComponentsInChildren<MeshRenderer>(includeInactive: true);
+                    for (int r = 0; r < renderers.Length; r++)
+                    {
+                        MeshRenderer mr = renderers[r];
+                        if (mr != null && (mr.sharedMaterial == null || mr.sharedMaterial.shader == null))
+                        {
+                            mr.sharedMaterial = fallbackMat;
+                        }
+                    }
+                }
+            }
+
+            if (foundCam == null)
+            {
+                GameObject camGo = new GameObject("Main Camera");
+                camGo.tag = "MainCamera";
+                Camera cam = camGo.AddComponent<Camera>();
+                cam.clearFlags = CameraClearFlags.SolidColor;
+                cam.backgroundColor = PetersburgSkyColor;
+                camGo.AddComponent<AudioListener>();
+                camGo.transform.position = new Vector3(0f, 3.6f, -12.5f);
+                camGo.transform.LookAt(new Vector3(0f, 1.4f, -4f));
+            }
+        }
+
+        private static void ApplyFontToSceneTmpTexts(Scene scene, TMP_FontAsset fontAsset)
+        {
+            if (fontAsset == null)
+            {
+                return;
+            }
+
+            GameObject[] roots = scene.GetRootGameObjects();
+            for (int i = 0; i < roots.Length; i++)
+            {
+                if (roots[i] == null) continue;
+                TMP_Text[] texts = roots[i].GetComponentsInChildren<TMP_Text>(includeInactive: true);
+                for (int t = 0; t < texts.Length; t++)
+                {
+                    if (texts[t] != null && texts[t].font == null)
+                    {
+                        texts[t].font = fontAsset;
+                    }
+                }
+            }
         }
 
         private static string ResolveOrCreateDualEraScene()
@@ -320,19 +602,28 @@ NavMeshSettings:
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
+            PlayerSettings.Android.renderOutsideSafeArea = true;
+
+            // OpenGL ES 3 первым (обходит известный сбой чёрного экрана Vulkan на Samsung Galaxy S20 FE / One UI 5.1)
+            PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
+            PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[]
+            {
+                GraphicsDeviceType.OpenGLES3,
+                GraphicsDeviceType.Vulkan
+            });
         }
 
-        private static void BuildGreyboxIntoActiveScene()
+        private static void BuildGreyboxIntoActiveScene(bool allowAssetSaving)
         {
             var lightGo = new GameObject("Directional_Light_PetersburgDay");
             var dirLight = lightGo.AddComponent<Light>();
             dirLight.type = LightType.Directional;
             dirLight.color = new Color32(0xE3, 0xE8, 0xF0, 0xFF);
-            dirLight.intensity = 1.1f;
+            dirLight.intensity = 1.15f;
             dirLight.shadows = LightShadows.Soft;
             lightGo.transform.rotation = Quaternion.Euler(48f, -32f, 0f);
 
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientMode = AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = new Color32(0xC9, 0xD3, 0xE0, 0xFF);
             RenderSettings.ambientEquatorColor = new Color32(0xD8, 0xD5, 0xCE, 0xFF);
             RenderSettings.ambientGroundColor = new Color32(0xDF, 0xD6, 0xC7, 0xFF);
@@ -343,15 +634,15 @@ NavMeshSettings:
             var npcsRoot = new GameObject("--- NPCS ---");
             var spawnsRoot = new GameObject("--- SPAWNS ---");
 
-            Material matGround = CreateMat("Mat_Ground_Beige", new Color32(0xC8, 0xC2, 0xB8, 0xFF));
-            Material matGrass = CreateMat("Mat_Grass_Olive", new Color32(0x5B, 0x7A, 0x53, 0xFF));
-            Material matConcrete = CreateMat("Mat_Concrete_Grey", new Color32(0x8F, 0x94, 0x99, 0xFF));
-            Material matBrick = CreateMat("Mat_Brick_Terracotta", new Color32(0xA8, 0x4A, 0x3B, 0xFF));
-            Material matSilicate = CreateMat("Mat_Silicate_LightGrey", new Color32(0xD2, 0xCE, 0xC6, 0xFF));
-            Material matAccentRed = CreateMat("Mat_Accent_Red", new Color32(0xC9, 0x3B, 0x2B, 0xFF));
-            Material matZimaLeto = CreateMat("Mat_ZimaLeto_LimeBlue", new Color32(0x6E, 0xB8, 0xA6, 0xFF));
-            Material matKitchen = CreateMat("Mat_Kitchen_Ochre", new Color32(0xD4, 0xA3, 0x59, 0xFF));
-            Material matSteel = CreateMat("Mat_Bridge_Steel", new Color32(0x6C, 0x76, 0x82, 0xFF));
+            Material matGround = CreateOrLoadMaterial("Mat_Ground_Beige", new Color32(0xC8, 0xC2, 0xB8, 0xFF), allowAssetSaving);
+            Material matGrass = CreateOrLoadMaterial("Mat_Grass_Olive", new Color32(0x5B, 0x7A, 0x53, 0xFF), allowAssetSaving);
+            Material matConcrete = CreateOrLoadMaterial("Mat_Concrete_Grey", new Color32(0x8F, 0x94, 0x99, 0xFF), allowAssetSaving);
+            Material matBrick = CreateOrLoadMaterial("Mat_Brick_Terracotta", new Color32(0xA8, 0x4A, 0x3B, 0xFF), allowAssetSaving);
+            Material matSilicate = CreateOrLoadMaterial("Mat_Silicate_LightGrey", new Color32(0xD2, 0xCE, 0xC6, 0xFF), allowAssetSaving);
+            Material matAccentRed = CreateOrLoadMaterial("Mat_Accent_Red", new Color32(0xC9, 0x3B, 0x2B, 0xFF), allowAssetSaving);
+            Material matZimaLeto = CreateOrLoadMaterial("Mat_ZimaLeto_LimeBlue", new Color32(0x6E, 0xB8, 0xA6, 0xFF), allowAssetSaving);
+            Material matKitchen = CreateOrLoadMaterial("Mat_Kitchen_Ochre", new Color32(0xD4, 0xA3, 0x59, 0xFF), allowAssetSaving);
+            Material matSteel = CreateOrLoadMaterial("Mat_Bridge_Steel", new Color32(0x6C, 0x76, 0x82, 0xFF), allowAssetSaving);
 
             var ground = CreateBox("ENV_Quarter_Ground", envRoot.transform, new Vector3(75f, -0.25f, 10f), new Vector3(360f, 0.5f, 360f), matGround, true);
             var navSurface = ground.AddComponent<NavMeshSurface>();
@@ -456,7 +747,7 @@ NavMeshSettings:
             }
         }
 
-        private static void SetupManagersActorsAndUi()
+        private static void SetupManagersActorsAndUi(bool allowAssetSaving)
         {
             GameObject managersRoot = new GameObject("--- MANAGERS ---");
             GameBootstrap bootstrap = managersRoot.AddComponent<GameBootstrap>();
@@ -477,11 +768,15 @@ NavMeshSettings:
             layer1950.SetActive(false);
             eraSwitcher.ConfigureContainers(anchors, layer2027, layer1950);
 
+            Material matSonya = CreateOrLoadMaterial("Mat_Player_Sonya", new Color32(0x3B, 0x6E, 0xA8, 0xFF), allowAssetSaving);
+            Material matSasha = CreateOrLoadMaterial("Mat_Companion_Sasha", new Color32(0xD9, 0x82, 0x3B, 0xFF), allowAssetSaving);
+
             // Player (Sonya 2027)
             GameObject playerGo = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             playerGo.name = "Player_Sonya2027";
             playerGo.tag = "Player";
             playerGo.transform.position = new Vector3(0f, 1.0f, -7f);
+            if (matSonya != null) playerGo.GetComponent<MeshRenderer>().sharedMaterial = matSonya;
             UnityEngine.Object.DestroyImmediate(playerGo.GetComponent<CapsuleCollider>());
             CharacterController cc = playerGo.AddComponent<CharacterController>();
             cc.height = 1.6f;
@@ -491,7 +786,13 @@ NavMeshSettings:
             // Camera (9:16)
             GameObject camGo = new GameObject("Main Camera");
             camGo.tag = "MainCamera";
-            camGo.AddComponent<Camera>();
+            Camera mainCam = camGo.AddComponent<Camera>();
+            mainCam.clearFlags = CameraClearFlags.SolidColor;
+            mainCam.backgroundColor = PetersburgSkyColor;
+            mainCam.nearClipPlane = 0.2f;
+            mainCam.farClipPlane = 450f;
+            camGo.transform.position = new Vector3(0f, 3.6f, -12.5f);
+            camGo.transform.LookAt(new Vector3(0f, 1.4f, -4f));
             camGo.AddComponent<AudioListener>();
             ThirdPersonCamera cam = camGo.AddComponent<ThirdPersonCamera>();
             cam.SetTarget(playerGo.transform);
@@ -501,6 +802,7 @@ NavMeshSettings:
             GameObject compGo = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             compGo.name = "Companion_Sasha";
             compGo.transform.position = new Vector3(1.5f, 1.0f, -7f);
+            if (matSasha != null) compGo.GetComponent<MeshRenderer>().sharedMaterial = matSasha;
             compGo.AddComponent<NavMeshAgent>();
             CompanionController companion = compGo.AddComponent<CompanionController>();
             companion.SetFollowTarget(playerGo.transform);
@@ -602,22 +904,6 @@ NavMeshSettings:
             capsule.transform.position = pos + Vector3.up * 0.7f;
             capsule.transform.localScale = new Vector3(0.6f, 0.7f, 0.6f);
             if (mat != null) capsule.GetComponent<MeshRenderer>().sharedMaterial = mat;
-        }
-
-        private static Material CreateMat(string matName, Color32 color)
-        {
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit")
-                ?? Shader.Find("Standard")
-                ?? Shader.Find("Sprites/Default");
-            if (shader == null)
-            {
-                return null;
-            }
-
-            var mat = new Material(shader) { name = matName };
-            mat.color = color;
-            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0f);
-            return mat;
         }
 
         private static void EnsureDirectoryForAsset(string assetPath)
