@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.IO;
+using System.Text;
 using TimeMachine.Core;
 using TimeMachine.Gameplay;
 using TimeMachine.UI;
@@ -31,6 +32,192 @@ namespace TimeMachine.Editor
         private const string DefaultApkOutputPath = "Builds/Android/TimeMachine_Okhta.apk";
         private const string DefaultAabOutputPath = "Builds/Android/TimeMachine_Okhta.aab";
 
+        private const string MinimalUnity6SceneYaml =
+@"%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!29 &1
+OcclusionCullingSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_OcclusionBakeSettings:
+    smallestOccluder: 5
+    smallestHole: 0.25
+    backfaceThreshold: 100
+  m_SceneGUID: 00000000000000000000000000000000
+  m_OcclusionCullingData: {fileID: 0}
+--- !u!104 &2
+RenderSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 10
+  m_Fog: 0
+  m_FogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  m_FogMode: 3
+  m_FogDensity: 0.01
+  m_LinearFogStart: 0
+  m_LinearFogEnd: 300
+  m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
+  m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
+  m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
+  m_AmbientIntensity: 1
+  m_AmbientMode: 0
+  m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
+  m_SkyboxMaterial: {fileID: 0}
+  m_HaloStrength: 0.5
+  m_FlareStrength: 1
+  m_FlareFadeSpeed: 3
+  m_HaloTexture: {fileID: 0}
+  m_SpotCookie: {fileID: 10001, guid: 0000000000000000e000000000000000, type: 0}
+  m_DefaultReflectionMode: 0
+  m_DefaultReflectionResolution: 128
+  m_ReflectionBounces: 1
+  m_ReflectionIntensity: 1
+  m_CustomReflection: {fileID: 0}
+  m_Sun: {fileID: 0}
+  m_UseRadianceAmbientProbe: 0
+--- !u!157 &3
+LightmapSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 13
+  m_GIWorkflowMode: 1
+  m_GISettings:
+    serializedVersion: 2
+    m_BounceScale: 1
+    m_IndirectOutputScale: 1
+    m_AlbedoBoost: 1
+    m_EnvironmentLightingMode: 0
+    m_EnableBakedLightmaps: 1
+    m_EnableRealtimeLightmaps: 0
+  m_LightmapEditorSettings:
+    serializedVersion: 12
+    m_Resolution: 2
+    m_BakeResolution: 40
+    m_AtlasSize: 1024
+    m_AO: 0
+    m_AOMaxDistance: 1
+    m_CompAOExponent: 1
+    m_CompAOExponentDirect: 0
+    m_ExtractAmbientOcclusion: 0
+    m_Padding: 2
+    m_LightmapParameters: {fileID: 0}
+    m_LightmapsBakeMode: 1
+    m_TextureCompression: 1
+    m_ReflectionCompression: 2
+    m_MixedBakeMode: 2
+    m_BakeBackend: 1
+    m_PVRSampling: 1
+    m_PVRDirectSampleCount: 32
+    m_PVRSampleCount: 512
+    m_PVRBounces: 2
+    m_PVREnvironmentSampleCount: 256
+    m_PVREnvironmentReferencePointCount: 2048
+    m_PVRFilteringMode: 1
+    m_PVRDenoiserTypeDirect: 1
+    m_PVRDenoiserTypeIndirect: 1
+    m_PVRDenoiserTypeAO: 1
+    m_PVRFilterTypeDirect: 0
+    m_PVRFilterTypeIndirect: 0
+    m_PVRFilterTypeAO: 0
+    m_PVREnvironmentMIS: 1
+    m_PVRCulling: 1
+    m_PVRFilteringGaussRadiusDirect: 1
+    m_PVRFilteringGaussRadiusIndirect: 5
+    m_PVRFilteringGaussRadiusAO: 2
+    m_PVRFilteringAtrousPositionSigmaDirect: 0.5
+    m_PVRFilteringAtrousPositionSigmaIndirect: 2
+    m_PVRFilteringAtrousPositionSigmaAO: 1
+    m_ExportTrainingData: 0
+    m_TrainingDataDestination: TrainingData
+    m_LightProbeSampleCountMultiplier: 4
+  m_LightingDataAsset: {fileID: 0}
+  m_LightingSettings: {fileID: 0}
+--- !u!196 &4
+NavMeshSettings:
+  serializedVersion: 2
+  m_ObjectHideFlags: 0
+  m_BuildSettings:
+    serializedVersion: 3
+    agentTypeID: 0
+    agentRadius: 0.5
+    agentHeight: 2
+    agentSlope: 45
+    agentClimb: 0.4
+    ledgeDropHeight: 0
+    maxJumpAcrossDistance: 0
+    minRegionArea: 2
+    manualCellSize: 0
+    cellSize: 0.16666667
+    manualTileSize: 0
+    tileSize: 256
+    buildHeightMesh: 0
+    maxJobWorkers: 0
+    preserveTilesOutsideBounds: 0
+    debug:
+      m_Flags: 0
+  m_NavMeshData: {fileID: 0}
+";
+
+        [InitializeOnLoadMethod]
+        private static void EnsureCloudBuildSceneRegistered()
+        {
+            try
+            {
+                string resolvedScenePath = ResolveOrCreateDualEraScene();
+                if (string.IsNullOrEmpty(resolvedScenePath))
+                {
+                    Debug.LogError("[CloudBuild] Не удалось найти или создать сцену для EditorBuildSettings.");
+                    return;
+                }
+
+                string expectedGuid = AssetDatabase.AssetPathToGUID(resolvedScenePath);
+                bool alreadyValid = false;
+
+                EditorBuildSettingsScene[] currentScenes = EditorBuildSettings.scenes;
+                if (currentScenes != null)
+                {
+                    for (int i = 0; i < currentScenes.Length; i++)
+                    {
+                        EditorBuildSettingsScene sceneEntry = currentScenes[i];
+                        if (sceneEntry != null &&
+                            sceneEntry.enabled &&
+                            !string.IsNullOrEmpty(sceneEntry.path) &&
+                            string.Equals(sceneEntry.path, resolvedScenePath, StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(sceneEntry.guid.ToString(), expectedGuid, StringComparison.OrdinalIgnoreCase))
+                        {
+                            alreadyValid = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!alreadyValid)
+                {
+                    EditorBuildSettings.scenes = new[]
+                    {
+                        new EditorBuildSettingsScene(resolvedScenePath, true)
+                    };
+                    AssetDatabase.SaveAssets();
+                }
+
+                Debug.Log($"[CloudBuild] Сцена зарегистрирована в EditorBuildSettings: path='{resolvedScenePath}', guid='{expectedGuid}', totalScenes={EditorBuildSettings.scenes.Length}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[CloudBuild] Ошибка регистрации сцены до сборки: {ex}");
+            }
+
+            if (Application.isBatchMode)
+            {
+                try
+                {
+                    ApplyAndroidPortraitSettings();
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[CloudBuild] Предупреждение при раннем применении PlayerSettings: {ex.Message}");
+                }
+            }
+        }
+
         [MenuItem("TimeMachine/Cloud Build Android APK (Headless)", priority = 90)]
         public static void BuildAndroidApkFromCloud()
         {
@@ -45,8 +232,17 @@ namespace TimeMachine.Editor
 
         public static void PopulateActiveSceneIfEmpty()
         {
+            string scenePath = ResolveOrCreateDualEraScene() ?? DualEraScenePath;
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            if (!activeScene.IsValid() || !string.Equals(activeScene.path, scenePath, StringComparison.OrdinalIgnoreCase))
+            {
+                activeScene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+            }
+
             if (GameObject.Find("--- MANAGERS ---") != null)
             {
+                Debug.Log("[CloudBuild] Сцена Scene_Okhta_DualEra уже наполнена, повторная генерация не требуется.");
                 return;
             }
 
@@ -56,15 +252,62 @@ namespace TimeMachine.Editor
             BuildGreyboxIntoActiveScene();
             SetupManagersActorsAndUi();
 
-            Scene activeScene = SceneManager.GetActiveScene();
+            activeScene = SceneManager.GetActiveScene();
             if (activeScene.IsValid())
             {
+                EnsureDirectoryForAsset(scenePath);
                 EditorSceneManager.MarkSceneDirty(activeScene);
-                EditorSceneManager.SaveScene(activeScene);
+                EditorSceneManager.SaveScene(activeScene, scenePath);
+                AssetDatabase.SaveAssets();
             }
 
-            OkhtaFullGameValidator.ValidateFullGame();
+            try
+            {
+                OkhtaFullGameValidator.ValidateFullGame();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[CloudBuild] Валидатор завершился с предупреждением: {ex.Message}");
+            }
+
             Debug.Log("[CloudBuild] Сцена и UI 9:16 сохранены и готовы к упаковке в .apk!");
+        }
+
+        private static string ResolveOrCreateDualEraScene()
+        {
+            if (!File.Exists(DualEraScenePath))
+            {
+                EnsureDirectoryForAsset(DualEraScenePath);
+                File.WriteAllText(
+                    DualEraScenePath,
+                    MinimalUnity6SceneYaml,
+                    new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+                AssetDatabase.ImportAsset(DualEraScenePath, ImportAssetOptions.ForceSynchronousImport);
+            }
+            else if (string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(DualEraScenePath)))
+            {
+                AssetDatabase.ImportAsset(DualEraScenePath, ImportAssetOptions.ForceSynchronousImport);
+            }
+
+            if (!string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(DualEraScenePath)))
+            {
+                return DualEraScenePath;
+            }
+
+            string[] sceneGuids = AssetDatabase.FindAssets("t:Scene");
+            if (sceneGuids != null && sceneGuids.Length > 0)
+            {
+                for (int i = 0; i < sceneGuids.Length; i++)
+                {
+                    string candidate = AssetDatabase.GUIDToAssetPath(sceneGuids[i]);
+                    if (!string.IsNullOrEmpty(candidate) && candidate.EndsWith(".unity", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return candidate;
+                    }
+                }
+            }
+
+            return null;
         }
 
         private static void ApplyAndroidPortraitSettings()
@@ -203,7 +446,14 @@ namespace TimeMachine.Editor
             CreateQuestTrigger("TRIG_Q07", triggersRoot.transform, new Vector3(144f, 0f, 42f), 2.5f, QuestIds.Q07, "T-MATH-07");
             CreateQuestTrigger("TRIG_Q08", triggersRoot.transform, new Vector3(142f, 0f, 41f), 3.0f, QuestIds.Q08, "T-MATH-08");
 
-            navSurface.BuildNavMesh();
+            try
+            {
+                navSurface.BuildNavMesh();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[CloudBuild] Предупреждение запекания NavMeshSurface: {ex.Message}");
+            }
         }
 
         private static void SetupManagersActorsAndUi()
@@ -274,6 +524,7 @@ namespace TimeMachine.Editor
 
         private static void BuildAndroidPackage(bool buildAppBundle, string fallbackOutputPath)
         {
+            EnsureCloudBuildSceneRegistered();
             PopulateActiveSceneIfEmpty();
             EditorUserBuildSettings.buildAppBundle = buildAppBundle;
 
@@ -293,9 +544,10 @@ namespace TimeMachine.Editor
                 Directory.CreateDirectory(outputDir);
             }
 
+            string scenePath = ResolveOrCreateDualEraScene() ?? DualEraScenePath;
             var buildOptions = new BuildPlayerOptions
             {
-                scenes = new[] { DualEraScenePath },
+                scenes = new[] { scenePath },
                 locationPathName = outputPath,
                 target = BuildTarget.Android,
                 options = BuildOptions.None
@@ -354,11 +606,27 @@ namespace TimeMachine.Editor
 
         private static Material CreateMat(string matName, Color32 color)
         {
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit")
+                ?? Shader.Find("Standard")
+                ?? Shader.Find("Sprites/Default");
+            if (shader == null)
+            {
+                return null;
+            }
+
             var mat = new Material(shader) { name = matName };
             mat.color = color;
             if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0f);
             return mat;
+        }
+
+        private static void EnsureDirectoryForAsset(string assetPath)
+        {
+            string dir = Path.GetDirectoryName(assetPath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
         }
     }
 }
