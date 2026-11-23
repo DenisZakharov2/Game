@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using TimeMachine.Core;
 
 namespace TimeMachine.Gameplay
@@ -34,6 +34,16 @@ namespace TimeMachine.Gameplay
             _controller = GetComponent<CharacterController>();
             _controller.slopeLimit = 35f;
             _controller.stepOffset = 0.35f;
+            ResolveReferences();
+        }
+
+        private void Start()
+        {
+            ResolveReferences();
+        }
+
+        private void ResolveReferences()
+        {
             if (touchInput == null)
             {
                 touchInput = FindAnyObjectByType<TouchInput>();
@@ -83,6 +93,11 @@ namespace TimeMachine.Gameplay
             if (!_controller.enabled)
             {
                 return;
+            }
+
+            if (cameraTransform == null && Camera.main != null)
+            {
+                cameraTransform = Camera.main.transform;
             }
 
             if (_controller.isGrounded && _verticalVelocity < 0f)
