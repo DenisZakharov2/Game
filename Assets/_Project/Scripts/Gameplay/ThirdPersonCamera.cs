@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using TimeMachine.Core;
 
 namespace TimeMachine.Gameplay
@@ -30,9 +30,27 @@ namespace TimeMachine.Gameplay
         {
             _pitch = defaultPitch;
             _currentDistance = defaultDistance;
+            ResolveReferences();
+        }
+
+        private void Start()
+        {
+            ResolveReferences();
+        }
+
+        private void ResolveReferences()
+        {
             if (touchInput == null)
             {
                 touchInput = FindAnyObjectByType<TouchInput>();
+            }
+            if (target == null)
+            {
+                GameObject playerGo = GameObject.FindWithTag("Player");
+                if (playerGo != null)
+                {
+                    SetTarget(playerGo.transform);
+                }
             }
         }
 
@@ -53,6 +71,11 @@ namespace TimeMachine.Gameplay
             {
                 _yaw = target.eulerAngles.y;
             }
+        }
+
+        public void SetTouchInput(TouchInput input)
+        {
+            touchInput = input;
         }
 
         private void HandlePlayerTeleported(Vector3 pos, float yaw)
@@ -94,6 +117,10 @@ namespace TimeMachine.Gameplay
             {
                 Collider col = _hitBuffer[i].collider;
                 if (col == null || col.transform == target || col.transform.IsChildOf(target))
+                {
+                    continue;
+                }
+                if (_hitBuffer[i].distance <= 0.001f)
                 {
                     continue;
                 }
