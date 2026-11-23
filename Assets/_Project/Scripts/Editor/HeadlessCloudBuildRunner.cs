@@ -528,8 +528,8 @@ NavMeshSettings:
                 cam.clearFlags = CameraClearFlags.SolidColor;
                 cam.backgroundColor = PetersburgSkyColor;
                 camGo.AddComponent<AudioListener>();
-                camGo.transform.position = new Vector3(0f, 3.6f, -12.5f);
-                camGo.transform.LookAt(new Vector3(0f, 1.4f, -4f));
+                camGo.transform.position = new Vector3(0f, 3.5f, -12.7f);
+                camGo.transform.LookAt(new Vector3(0f, 1.5f, -5.0f));
             }
         }
 
@@ -648,29 +648,29 @@ NavMeshSettings:
             var navSurface = ground.AddComponent<NavMeshSurface>();
             navSurface.collectObjects = CollectObjects.All;
 
-            // L-2027-HILL
-            CreateBox("ENV_Hill_Mound", envRoot.transform, new Vector3(0f, 1.75f, 0f), new Vector3(18f, 3.5f, 14f), matGrass, true);
-            CreateBox("ENV_Hill_Portal", envRoot.transform, new Vector3(2f, 1.3f, -4f), new Vector3(4f, 2.6f, 3.5f), matConcrete, true);
-            CreateBox("PROP_Hill_Door_2027", propsRoot.transform, new Vector3(2f, 1.1f, -2.5f), new Vector3(1.4f, 2.1f, 0.15f), matAccentRed, true);
-            var bottle = CreateBox("PROP_Hill_MilkBottle", propsRoot.transform, new Vector3(0.6f, 0.25f, -4.8f), new Vector3(0.25f, 0.4f, 0.25f), matZimaLeto, false);
+            // L-2027-HILL (холм сдвинут за фасад z = -1.5, чтобы портал, бутылка и старт игрока были открыты)
+            CreateBox("ENV_Hill_Mound", envRoot.transform, new Vector3(0f, 1.75f, 3.5f), new Vector3(18f, 3.5f, 10f), matGrass, true);
+            CreateBox("ENV_Hill_Portal", envRoot.transform, new Vector3(2f, 1.3f, -2.5f), new Vector3(4f, 2.6f, 2.5f), matConcrete, true);
+            CreateBox("PROP_Hill_Door_2027", propsRoot.transform, new Vector3(2f, 1.1f, -3.8f), new Vector3(1.4f, 2.1f, 0.15f), matAccentRed, true);
+            var bottle = CreateBox("PROP_Hill_MilkBottle", propsRoot.transform, new Vector3(0.6f, 0.25f, -4.8f), new Vector3(0.3f, 0.5f, 0.3f), matZimaLeto, false);
             var bottleInteract = bottle.AddComponent<InteractableObject>();
             bottleInteract.Configure("INT_Q01_Bottle", "Достать бутылку из провала", "T-RUS-01", true);
             bottleInteract.SetLinkedLoreId("LORE-01");
 
-            CreateBox("ENV_Hill_Stairs", envRoot.transform, new Vector3(-4f, 0.8f, -2f), new Vector3(2.2f, 1.6f, 4.5f), matConcrete, true);
-            CreateBox("PROP_Hill_VentShaft", propsRoot.transform, new Vector3(-6f, 0.9f, 8f), new Vector3(2f, 1.8f, 2f), matConcrete, true);
+            CreateBox("ENV_Hill_Stairs", envRoot.transform, new Vector3(-4f, 0.8f, -2.5f), new Vector3(2.2f, 1.6f, 3.5f), matConcrete, true);
+            CreateBox("PROP_Hill_VentShaft", propsRoot.transform, new Vector3(-6f, 0.9f, 9.5f), new Vector3(2f, 1.8f, 2f), matConcrete, true);
             CreateBox("ENV_Playground_Zone", envRoot.transform, new Vector3(12f, 0.05f, 25f), new Vector3(20f, 0.1f, 20f), matBrick, true);
 
-            CreateQuestTrigger("TRIG_Q01", triggersRoot.transform, new Vector3(2f, 0f, -4f), 2.5f, QuestIds.Q01, "T-RUS-01");
-            CreateMarker("SPAWN_Start_Hill", spawnsRoot.transform, new Vector3(0f, 0f, -7f), matZimaLeto);
-            CreateMarker("NPC_barni", npcsRoot.transform, new Vector3(1.2f, 0f, -4.5f), matAccentRed);
+            CreateQuestTrigger("TRIG_Q01", triggersRoot.transform, new Vector3(1.2f, 0f, -4.8f), 2.5f, QuestIds.Q01, "T-RUS-01");
+            CreateMarker("SPAWN_Start_Hill", spawnsRoot.transform, new Vector3(0f, 0f, -8.5f), matZimaLeto);
+            CreateMarker("NPC_barni", npcsRoot.transform, new Vector3(1.6f, 0f, -5.2f), matAccentRed);
 
             // L-2027-KITCHEN
             CreateBox("ENV_ZimaLeto_Entrance9_6", envRoot.transform, new Vector3(52f, 2.0f, 86f), new Vector3(6f, 4.0f, 4f), matZimaLeto, true);
             CreateMarker("SPAWN_Exit_ZimaLeto", spawnsRoot.transform, new Vector3(52f, 0f, 83.2f), matZimaLeto);
 
             var doorEnterGo = CreateTriggerBox("TRIG_Door_Kitchen", triggersRoot.transform, new Vector3(52f, 1.0f, 84.5f), new Vector3(2.5f, 2.2f, 2.0f));
-            doorEnterGo.AddComponent<KitchenPortalTrigger>().Configure("TRIG_Door_Kitchen", "Подняться на кухню Сони (ЖК «ЗимаЛето», 9/6)", new Vector3(500f, 0.1f, 498.5f), 0f);
+            doorEnterGo.AddComponent<KitchenPortalTrigger>().Configure("TRIG_Door_Kitchen", "Подняться на кухню Сони (ЖК «ЗимаЛето», 9/6)", new Vector3(500f, 1.0f, 498.8f), 0f);
 
             CreateBox("ENV_Kitchen_Floor", envRoot.transform, new Vector3(500f, -0.1f, 500f), new Vector3(5f, 0.2f, 4f), matKitchen, true);
             CreateBox("ENV_Kitchen_WallNorth", envRoot.transform, new Vector3(500f, 1.5f, 502f), new Vector3(5f, 3.0f, 0.2f), matSilicate, true);
@@ -686,7 +686,7 @@ NavMeshSettings:
             CreateQuestTrigger("TRIG_Q02", triggersRoot.transform, new Vector3(500f, 0f, 500.2f), 2.0f, QuestIds.Q02, "T-MATH-02");
 
             var doorExitGo = CreateTriggerBox("TRIG_Door_Kitchen_Exit", triggersRoot.transform, new Vector3(500f, 1.0f, 498.4f), new Vector3(2.0f, 2.2f, 1.5f));
-            doorExitGo.AddComponent<KitchenPortalTrigger>().Configure("TRIG_Door_Kitchen_Exit", "Выйти во двор ЖК «ЗимаЛето»", new Vector3(52f, 0.1f, 83.2f), 180f);
+            doorExitGo.AddComponent<KitchenPortalTrigger>().Configure("TRIG_Door_Kitchen_Exit", "Выйти во двор ЖК «ЗимаЛето»", new Vector3(52f, 1.0f, 83.0f), 180f);
 
             // L-2027-COURTYARD71
             CreateBox("ENV_House71_Block", envRoot.transform, new Vector3(18f, 7.5f, 28f), new Vector3(16f, 15f, 12f), matSilicate, true);
@@ -771,11 +771,11 @@ NavMeshSettings:
             Material matSonya = CreateOrLoadMaterial("Mat_Player_Sonya", new Color32(0x3B, 0x6E, 0xA8, 0xFF), allowAssetSaving);
             Material matSasha = CreateOrLoadMaterial("Mat_Companion_Sasha", new Color32(0xD9, 0x82, 0x3B, 0xFF), allowAssetSaving);
 
-            // Player (Sonya 2027)
+            // Player (Sonya 2027) — свободная стартовая точка перед горкой
             GameObject playerGo = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             playerGo.name = "Player_Sonya2027";
             playerGo.tag = "Player";
-            playerGo.transform.position = new Vector3(0f, 1.0f, -7f);
+            playerGo.transform.position = new Vector3(0f, 1.0f, -8.5f);
             if (matSonya != null) playerGo.GetComponent<MeshRenderer>().sharedMaterial = matSonya;
             UnityEngine.Object.DestroyImmediate(playerGo.GetComponent<CapsuleCollider>());
             CharacterController cc = playerGo.AddComponent<CharacterController>();
@@ -791,8 +791,8 @@ NavMeshSettings:
             mainCam.backgroundColor = PetersburgSkyColor;
             mainCam.nearClipPlane = 0.2f;
             mainCam.farClipPlane = 450f;
-            camGo.transform.position = new Vector3(0f, 3.6f, -12.5f);
-            camGo.transform.LookAt(new Vector3(0f, 1.4f, -4f));
+            camGo.transform.position = new Vector3(0f, 3.5f, -12.7f);
+            camGo.transform.LookAt(new Vector3(0f, 1.5f, -5.0f));
             camGo.AddComponent<AudioListener>();
             ThirdPersonCamera cam = camGo.AddComponent<ThirdPersonCamera>();
             cam.SetTarget(playerGo.transform);
@@ -801,7 +801,7 @@ NavMeshSettings:
             // Companion (Sasha)
             GameObject compGo = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             compGo.name = "Companion_Sasha";
-            compGo.transform.position = new Vector3(1.5f, 1.0f, -7f);
+            compGo.transform.position = new Vector3(1.8f, 1.0f, -8.5f);
             if (matSasha != null) compGo.GetComponent<MeshRenderer>().sharedMaterial = matSasha;
             compGo.AddComponent<NavMeshAgent>();
             CompanionController companion = compGo.AddComponent<CompanionController>();
@@ -811,6 +811,7 @@ NavMeshSettings:
             OkhtaUiCanvasBuilder.BuildPortraitUiCanvas();
             TouchInput touchInput = UnityEngine.Object.FindAnyObjectByType<TouchInput>();
             player.SetTouchInput(touchInput);
+            cam.SetTouchInput(touchInput);
 
             bootstrap.SetSceneControllers(
                 player,
