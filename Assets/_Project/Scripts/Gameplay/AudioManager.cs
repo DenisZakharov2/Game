@@ -1,232 +1,82 @@
-﻿using System.Collections.Generic;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
-using TimeMachine.Core;
 
 namespace TimeMachine.Gameplay
 {
-    public enum SurfaceType
-    {
-        Asphalt = 0,
-        Gravel = 1,
-        ConcreteStairs = 2,
-        WoodFloor = 3
-    }
-
     public class AudioManager : MonoBehaviour
     {
         public static AudioManager Instance { get; private set; }
 
-        [Header("Pool & Ducking Settings")]
-        [SerializeField] private int sfxPoolSize = 10;
-        [SerializeField] private float taskDuckingDb = -18f;
-        [SerializeField] private float duckingLerpSpeed = 8f;
+        [Header("Audio Sources")]
+        [SerializeField] private AudioSource musicSource;
+        [SerializeField] private AudioSource sfxSource;
 
-        private AudioSource _musicPrimary;
-        private AudioSource _musicSecondary;
-        private AudioSource[] _sfxPool;
-        private int _sfxCursor;
+        [Header("Music Settings")]
+        [Range(0f, 1f)] [SerializeField] private float defaultMusicVolume = 0.15f; // Тихая фоновая музыка
+        [Range(0f, 1f)] [SerializeField] private float duckedMusicVolume = 0.04f;  // Приглушение (-18 дБ) при решении задач
+        [SerializeField] private float fadeDuration = 0.8f;
 
-        private readonly Dictionary<string, AudioClip> _loadedClips = new Dictionary<string, AudioClip>(96);
-        private readonly Dictionary<string, string> _eventToClipName = new Dictionary<string, string>(96);
-
-        private float _userMusicVolume = 0.8f;
-        private float _userSfxVolume = 0.9f;
-        private float _currentDuckMultiplier = 1f;
-        private float _targetDuckMultiplier = 1f;
-        private float _duckLinearFactor;
-
-        public float UserMusicVolume => _userMusicVolume;
-        public float UserSfxVolume => _userSfxVolume;
+        private Coroutine fadeCoroutine;
 
         private void Awake()
         {
-            if (Instance != null && Instance != this)
+            if (Instance == null)
+            {
+                Instance = this;
+                DontDestroyOnLoad(gameObject);
+                InitSources();
+            }
+            else
             {
                 Destroy(gameObject);
-                return;
-            }
-            Instance = this;
-            _duckLinearFactor = Mathf.Pow(10f, taskDuckingDb / 20f); // -18 dB -> ~0.1259f
-
-            _musicPrimary = gameObject.AddComponent<AudioSource>();
-            _musicPrimary.loop = true;
-            _musicPrimary.playOnAwake = false;
-
-            _musicSecondary = gameObject.AddComponent<AudioSource>();
-            _musicSecondary.loop = true;
-            _musicSecondary.playOnAwake = false;
-
-            _sfxPool = new AudioSource[Mathf.Max(4, sfxPoolSize)];
-            for (int i = 0; i < _sfxPool.Length; i++)
-            {
-                AudioSource src = gameObject.AddComponent<AudioSource>();
-                src.playOnAwake = false;
-                src.loop = false;
-                _sfxPool[i] = src;
-            }
-
-            LoadShotlistCsv();
-        }
-
-        private void LoadShotlistCsv()
-        {
-            TextAsset csv = Resources.Load<TextAsset>("Audio/audio_shotlist");
-            if (csv == null || string.IsNullOrEmpty(csv.text))
-            {
-                return;
-            }
-
-            string[] lines = csv.text.Split(new[] { '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries);
-            for (int i = 1; i < lines.Length; i++)
-            {
-                string line = lines[i].Trim();
-                if (string.IsNullOrEmpty(line))
-                {
-                    continue;
-                }
-                string[] cols = line.Split(';');
-                if (cols.Length >= 3)
-                {
-                    string eventId = cols[0].Trim();
-                    string fileName = cols[2].Trim();
-                    int dotIndex = fileName.LastIndexOf('.');
-                    string clipResourceName = dotIndex > 0 ? fileName.Substring(0, dotIndex) : fileName;
-                    _eventToClipName[eventId] = clipResourceName;
-                }
             }
         }
 
-        public void SetTaskWindowOpen(bool isOpen)
+        private void InitSources()
         {
-            _targetDuckMultiplier = isOpen ? _duckLinearFactor : 1f;
+            if (musicSource == null) musicSource = gameObject.AddComponent<AudioSource>();
+            if (sfxSource == null) sfxSource = gameObject.AddComponent<AudioSource>();
+
+            musicSource.loop = true;
+            musicSource.volume = defaultMusicVolume;
+            musicSource.playOnAwake = false;
+            sfxSource.playOnAwake = false;
         }
 
-        public void SetMusicVolume(float volume)
+        public void PlayMusic(AudioClip clip)
         {
-            _userMusicVolume = Mathf.Clamp01(volume);
-            ApplyMusicVolume();
+            if (clip == null || musicSource.clip == clip) return;
+            musicSource.clip = clip;
+            musicSource.volume = defaultMusicVolume;
+            musicSource.Play();
         }
 
-        public void SetSfxVolume(float volume)
+        public void SetTaskDucking(bool isTaskActive)
         {
-            _userSfxVolume = Mathf.Clamp01(volume);
+            float targetVolume = isTaskActive ? duckedMusicVolume : defaultMusicVolume;
+            if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
+            fadeCoroutine = StartCoroutine(FadeVolume(targetVolume));
         }
 
-        public void PlayMusic(string musicEventId, float crossfadeDuration = 1.0f)
+        private IEnumerator FadeVolume(float targetVolume)
         {
-            AudioClip clip = ResolveClip(musicEventId);
-            if (clip == null || (_musicPrimary.isPlaying && _musicPrimary.clip == clip))
+            float startVolume = musicSource.volume;
+            float time = 0f;
+
+            while (time < fadeDuration)
             {
-                return;
+                time += Time.deltaTime;
+                musicSource.volume = Mathf.Lerp(startVolume, targetVolume, time / fadeDuration);
+                yield return null;
             }
 
-            _musicPrimary.clip = clip;
-            _musicPrimary.volume = _userMusicVolume * _currentDuckMultiplier;
-            _musicPrimary.Play();
+            musicSource.volume = targetVolume;
         }
 
-        public void PlaySfx(string sfxEventId, float pitchVariation = 0f)
+        public void PlaySFX(AudioClip clip)
         {
-            if (_userSfxVolume <= 0.001f)
-            {
-                return;
-            }
-
-            AudioClip clip = ResolveClip(sfxEventId);
-            if (clip == null)
-            {
-                return;
-            }
-
-            AudioSource src = _sfxPool[_sfxCursor];
-            _sfxCursor = (_sfxCursor + 1) % _sfxPool.Length;
-            src.pitch = pitchVariation > 0f ? Random.Range(1f - pitchVariation, 1f + pitchVariation) : 1f;
-            src.volume = _userSfxVolume;
-            src.PlayOneShot(clip);
-        }
-
-        public void PlayVoiceCue(string speakerId)
-        {
-            switch (speakerId)
-            {
-                case GameConstants.CharacterIds.Sonya2027:
-                    PlaySfx("SFX-23", 0.03f);
-                    break;
-                case GameConstants.CharacterIds.Sonya2040:
-                    PlaySfx("SFX-24", 0.02f);
-                    break;
-                case GameConstants.CharacterIds.Artur:
-                    PlaySfx("SFX-25", 0.02f);
-                    break;
-                case GameConstants.CharacterIds.Babushka:
-                    PlaySfx("SFX-26", 0.02f);
-                    break;
-                case GameConstants.CharacterIds.Barni:
-                    PlaySfx("SFX-19", 0.05f);
-                    break;
-                case GameConstants.CharacterIds.Zhulik:
-                    PlaySfx("SFX-21", 0.04f);
-                    break;
-                default:
-                    PlaySfx("SFX-22", 0.03f);
-                    break;
-            }
-        }
-
-        public void PlayFootstep(SurfaceType surface)
-        {
-            switch (surface)
-            {
-                case SurfaceType.Gravel:
-                    PlaySfx("SFX-14", 0.06f);
-                    break;
-                case SurfaceType.ConcreteStairs:
-                    PlaySfx("SFX-15", 0.05f);
-                    break;
-                case SurfaceType.WoodFloor:
-                    PlaySfx("SFX-16", 0.05f);
-                    break;
-                default:
-                    PlaySfx("SFX-13", 0.06f);
-                    break;
-            }
-        }
-
-        private AudioClip ResolveClip(string eventId)
-        {
-            if (string.IsNullOrEmpty(eventId))
-            {
-                return null;
-            }
-            if (_loadedClips.TryGetValue(eventId, out AudioClip cached))
-            {
-                return cached;
-            }
-
-            string resourceName = _eventToClipName.TryGetValue(eventId, out string mapped) ? mapped : eventId;
-            AudioClip clip = Resources.Load<AudioClip>("Audio/" + resourceName);
-            _loadedClips[eventId] = clip;
-            return clip;
-        }
-
-        private void Update()
-        {
-            if (!Mathf.Approximately(_currentDuckMultiplier, _targetDuckMultiplier))
-            {
-                _currentDuckMultiplier = Mathf.MoveTowards(
-                    _currentDuckMultiplier,
-                    _targetDuckMultiplier,
-                    duckingLerpSpeed * Time.unscaledDeltaTime);
-                ApplyMusicVolume();
-            }
-        }
-
-        private void ApplyMusicVolume()
-        {
-            if (_musicPrimary != null)
-            {
-                _musicPrimary.volume = _userMusicVolume * _currentDuckMultiplier;
-            }
+            if (clip != null) sfxSource.PlayOneShot(clip);
         }
     }
 }
