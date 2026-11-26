@@ -1,201 +1,127 @@
-﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using TimeMachine.Core;
-using TimeMachine.Data;
-using TimeMachine.Education;
 
 namespace TimeMachine.Gameplay
 {
-    [Serializable]
-    public struct FreeRoamPointOfInterest
-    {
-        public string locationId;
-        public string loreId;
-        public string title;
-        public Vector3 worldPosition;
-        public float triggerRadius;
-        public bool inspectedInSession;
-    }
-
     public class FreeRoamController : MonoBehaviour
     {
-        [Header("Free Roam District Exploration (Post Q-24)")]
+        [Header("POI Scanning Settings")]
+        [SerializeField] private float scanInterval = 0.25f;
+        [SerializeField] private float maxInteractionDistance = 3.0f;
+        [SerializeField] private float maxScanRadius = 20.0f;
+
+        [Header("References")]
         [SerializeField] private Transform playerTransform;
-        [SerializeField] private FreeRoamPointOfInterest[] pointsOfInterest;
-        [SerializeField] private float scanInterval = 0.15f;
 
-        private GameState _gameState;
-        private ContentDatabase _database;
-        private LoreJournal _loreJournal;
-        private TaskGenerator _taskGenerator;
-        private SaveSystem _saveSystem;
+        private readonly List<Transform> poiList = new List<Transform>();
+        private Transform currentNearestPoi;
+        private float nextScanTime;
+        private bool isScanningActive = true;
 
-        private bool _isFreeRoamActive;
-        private float _scanTimer;
-        private int _focusedIndex = -1;
-        private int _mathSeedCounter = 100;
-        private int _rusSeedCounter = 200;
-
-        public event Action<FreeRoamPointOfInterest> OnPointOfInterestFocused;
-        public event Action OnPointOfInterestCleared;
-        public event Action<GeneratedTaskInstance> OnPracticeTaskGenerated;
-
-        public bool IsFreeRoamActive => _isFreeRoamActive;
-
-        public void BindSystems(
-            GameState state,
-            ContentDatabase database,
-            LoreJournal loreJournal,
-            TaskGenerator generator,
-            SaveSystem saveSystem)
+        private void Start()
         {
-            _gameState = state;
-            _database = database;
-            _loreJournal = loreJournal;
-            _taskGenerator = generator;
-            _saveSystem = saveSystem;
+            ValidateDependencies();
         }
 
-        public void SetPlayerTransform(Transform player)
+        public void Initialize(Transform targetPlayer)
         {
-            playerTransform = player;
+            playerTransform = targetPlayer;
         }
 
-        public void ConfigurePointsOfInterest(FreeRoamPointOfInterest[] pois)
+        private void ValidateDependencies()
         {
-            pointsOfInterest = pois;
-        }
-
-        public void ActivateFreeRoam()
-        {
-            _isFreeRoamActive = true;
-            if (_gameState != null && _gameState.Data != null)
+            if (playerTransform == null)
             {
-                _gameState.Data.isStoryCompleted = true;
-                if (_saveSystem != null)
-                {
-                    _saveSystem.Save(_gameState.Data);
-                }
-            }
-            if (AudioManager.Instance != null)
-            {
-                AudioManager.Instance.PlaySfx("SFX-75");
+#if UNITY_EDITOR
+                Debug.LogWarning("[TimeMachine] [FreeRoamController] playerTransform не назначен. Поиск игрока по тегу в Editor fallback.", this);
+                GameObject playerObj = GameObject.FindWithTag("Player");
+                if (playerObj != null) playerTransform = playerObj.transform;
+#else
+                Debug.LogError("[TimeMachine] [FreeRoamController] КРИТИЧЕСКАЯ ОШИБКА: playerTransform не установлена!", this);
+#endif
             }
         }
 
-        public bool InspectPointOfInterestByIndex(int index)
+        public void RegisterPOI(Transform poi)
         {
-            if (pointsOfInterest == null || index < 0 || index >= pointsOfInterest.Length)
+            if (poi != null && !poiList.Contains(poi))
             {
-                return false;
+                poiList.Add(poi);
             }
-
-            FreeRoamPointOfInterest poi = pointsOfInterest[index];
-            if (_loreJournal != null && !string.IsNullOrEmpty(poi.loreId))
-            {
-                if (_database != null && _database.TryGetLoreCard(poi.loreId, out LoreCardData card))
-                {
-                    if (!_loreJournal.IsCardVerified(card))
-                    {
-                        return false;
-                    }
-                    _loreJournal.TryUnlockCard(poi.loreId);
-                }
-            }
-
-            if (!poi.inspectedInSession)
-            {
-                poi.inspectedInSession = true;
-                pointsOfInterest[index] = poi;
-                if (_gameState != null)
-                {
-                    _gameState.AddXp(10);
-                }
-            }
-
-            return true;
         }
 
-        public bool TryStartMathPracticeTask(out GeneratedTaskInstance instance)
+        public void UnregisterPOI(Transform poi)
         {
-            instance = null;
-            if (_database == null || _taskGenerator == null)
+            if (poi != null && poiList.Contains(poi))
             {
-                return false;
+                poiList.Remove(poi);
             }
-            int tplIndex = (_mathSeedCounter % 10) + 1;
-            string tplId = tplIndex < 10 ? $"TPL-MATH-0{tplIndex}" : $"TPL-MATH-{tplIndex}";
-            _mathSeedCounter++;
-
-            if (_database.TryGetTemplate(tplId, out TemplateData tpl))
-            {
-                instance = _taskGenerator.GenerateFromTemplate(tpl, _mathSeedCounter);
-                OnPracticeTaskGenerated?.Invoke(instance);
-                return instance != null;
-            }
-            return false;
         }
 
-        public bool TryStartRussianPracticeTask(out GeneratedTaskInstance instance)
+        public void SetScanningActive(bool active)
         {
-            instance = null;
-            if (_database == null || _taskGenerator == null)
+            isScanningActive = active;
+            if (!active)
             {
-                return false;
+                currentNearestPoi = null;
             }
-            int tplIndex = (_rusSeedCounter % 10) + 1;
-            string tplId = tplIndex < 10 ? $"TPL-RUS-0{tplIndex}" : $"TPL-RUS-{tplIndex}";
-            _rusSeedCounter++;
-
-            if (_database.TryGetTemplate(tplId, out TemplateData tpl))
-            {
-                instance = _taskGenerator.GenerateFromTemplate(tpl, _rusSeedCounter);
-                OnPracticeTaskGenerated?.Invoke(instance);
-                return instance != null;
-            }
-            return false;
         }
 
         private void Update()
         {
-            if (!_isFreeRoamActive || playerTransform == null || pointsOfInterest == null || pointsOfInterest.Length == 0)
-            {
-                return;
-            }
+            if (!isScanningActive || playerTransform == null || poiList.Count == 0) return;
 
-            _scanTimer += Time.deltaTime;
-            if (_scanTimer < scanInterval)
+            if (Time.time >= nextScanTime)
             {
-                return;
+                nextScanTime = Time.time + scanInterval;
+                ScanPointsOfInterest();
             }
-            _scanTimer = 0f;
+        }
+
+        private void ScanPointsOfInterest()
+        {
+            Transform nearest = null;
+            float minSqrDistance = maxInteractionDistance * maxInteractionDistance;
+            float maxScanSqrDistance = maxScanRadius * maxScanRadius;
 
             Vector3 playerPos = playerTransform.position;
-            int nearestIndex = -1;
-            float bestDistSqr = float.MaxValue;
 
-            for (int i = 0; i < pointsOfInterest.Length; i++)
+            for (int i = poiList.Count - 1; i >= 0; i--)
             {
-                float r = pointsOfInterest[i].triggerRadius > 0f ? pointsOfInterest[i].triggerRadius : 3.0f;
-                float distSqr = (playerPos - pointsOfInterest[i].worldPosition).sqrMagnitude;
-                if (distSqr <= r * r && distSqr < bestDistSqr)
+                Transform poi = poiList[i];
+                if (poi == null)
                 {
-                    bestDistSqr = distSqr;
-                    nearestIndex = i;
+                    poiList.RemoveAt(i);
+                    continue;
+                }
+
+                Vector3 diff = poi.position - playerPos;
+                float sqrDist = diff.sqrMagnitude;
+
+                // Ранний выход по максимальной дистанции
+                if (sqrDist > maxScanSqrDistance) continue;
+
+                if (sqrDist < minSqrDistance)
+                {
+                    minSqrDistance = sqrDist;
+                    nearest = poi;
                 }
             }
 
-            if (nearestIndex != _focusedIndex)
+            if (currentNearestPoi != nearest)
             {
-                _focusedIndex = nearestIndex;
-                if (_focusedIndex >= 0)
-                {
-                    OnPointOfInterestFocused?.Invoke(pointsOfInterest[_focusedIndex]);
-                }
-                else
-                {
-                    OnPointOfInterestCleared?.Invoke();
-                }
+                currentNearestPoi = nearest;
+                OnNearestPoiChanged(currentNearestPoi);
+            }
+        }
+
+        private void OnNearestPoiChanged(Transform newPoi)
+        {
+            if (newPoi != null)
+            {
+                Debug.Log($"[TimeMachine] [FreeRoamController] Обнаружена ближайшая точка интереса: {newPoi.name}");
             }
         }
     }
