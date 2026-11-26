@@ -1,86 +1,60 @@
-﻿using System;
 using System.Collections.Generic;
-using TimeMachine.Core;
+using UnityEngine;
 
 namespace TimeMachine.Data
 {
-    public class InventorySystem
+    public class InventorySystem : MonoBehaviour
     {
-        private readonly GameState _state;
+        public static InventorySystem Instance { get; private set; }
 
-        private static readonly Dictionary<string, int> PartMassGrams = new Dictionary<string, int>(StringComparer.Ordinal)
+        private void Awake()
         {
-            { GameConstants.ItemIds.PartQuartzStabilizer, 850 },
-            { GameConstants.ItemIds.PartMagneticCoil, 650 },
-            { GameConstants.ItemIds.PartCapacitorBlock, 400 },
-            { GameConstants.ItemIds.PartChronoCore, 600 },
-            { GameConstants.ItemIds.PartMicrowaveMotor, 500 }
-        };
-
-        public InventorySystem(GameState state)
-        {
-            _state = state ?? throw new ArgumentNullException(nameof(state));
-        }
-
-        public void AddItem(string itemId, int count = 1)
-        {
-            if (string.IsNullOrWhiteSpace(itemId) || count <= 0) return;
-
-            var list = _state.Data.inventory;
-            for (int i = 0; i < list.Count; i++)
+            if (Instance == null)
             {
-                if (string.Equals(list[i].itemId, itemId, StringComparison.Ordinal))
-                {
-                    list[i].count += count;
-                    GameEventBus.RaiseInventoryChanged();
-                    return;
-                }
+                Instance = this;
             }
-
-            list.Add(new InventoryItemEntry { itemId = itemId, count = count });
-            GameEventBus.RaiseInventoryChanged();
+            else
+            {
+                Destroy(gameObject);
+            }
         }
 
-        public bool HasItem(string itemId, int minCount = 1)
+        public bool HasItem(string itemId)
         {
-            if (string.IsNullOrWhiteSpace(itemId)) return false;
-            var list = _state.Data.inventory;
-            for (int i = 0; i < list.Count; i++)
+            if (GameState.Instance == null || GameState.Instance.CurrentData == null) return false;
+            return GameState.Instance.CurrentData.inventory.Contains(itemId);
+        }
+
+        public void AddItem(string itemId)
+        {
+            if (string.IsNullOrEmpty(itemId)) return;
+            if (GameState.Instance != null && GameState.Instance.CurrentData != null)
             {
-                if (string.Equals(list[i].itemId, itemId, StringComparison.Ordinal))
-                {
-                    return list[i].count >= minCount;
-                }
+                GameState.Instance.AddInventoryItem(itemId);
+                Debug.Log($"[TimeMachine] [InventorySystem] Добавлен предмет в инвентарь: {itemId}");
+            }
+        }
+
+        public bool RemoveItem(string itemId)
+        {
+            if (GameState.Instance == null || GameState.Instance.CurrentData == null) return false;
+
+            if (GameState.Instance.CurrentData.inventory.Contains(itemId))
+            {
+                GameState.Instance.CurrentData.inventory.Remove(itemId);
+                GameState.Instance.SaveCurrentState();
+                Debug.Log($"[TimeMachine] [InventorySystem] Удален предмет из инвентаря: {itemId}");
+                return true;
             }
             return false;
         }
 
-        public int GetZarya7TotalMassGrams()
+        public List<string> GetAllItems()
         {
-            if (HasItem(GameConstants.ItemIds.Zarya7Assembled) || (_state.Data != null && _state.Data.isZarya7Assembled))
-            {
-                return GameConstants.GameplayTuning.TotalZarya7MassGrams;
-            }
+            if (GameState.Instance == null || GameState.Instance.CurrentData == null) 
+                return new List<string>();
 
-            int sum = 0;
-            foreach (var kvp in PartMassGrams)
-            {
-                if (HasItem(kvp.Key))
-                {
-                    sum += kvp.Value;
-                }
-            }
-            return sum;
-        }
-
-        public bool HasAllZarya7Components()
-        {
-            var parts = GameConstants.ItemIds.RequiredZarya7Parts;
-            for (int i = 0; i < parts.Length; i++)
-            {
-                if (!HasItem(parts[i])) return false;
-            }
-            return true;
+            return new List<string>(GameState.Instance.CurrentData.inventory);
         }
     }
 }
