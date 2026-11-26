@@ -1,54 +1,50 @@
-﻿using System;
 using System.Collections.Generic;
-using TimeMachine.Core;
+using UnityEngine;
 using TimeMachine.Data;
 
 namespace TimeMachine.Education
 {
-    public class LoreJournal
+    public class LoreJournal : MonoBehaviour
     {
-        private readonly ContentDatabase _database;
-        private readonly GameState _state;
+        public static LoreJournal Instance { get; private set; }
 
-        public LoreJournal(ContentDatabase database, GameState state)
+        private void Awake()
         {
-            _database = database ?? throw new ArgumentNullException(nameof(database));
-            _state = state ?? throw new ArgumentNullException(nameof(state));
-        }
-
-        public bool IsCardVerified(LoreCardData card)
-        {
-            if (card == null || string.IsNullOrWhiteSpace(card.sourceUrl)) return false;
-            return card.sourceUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                   card.sourceUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
-        }
-
-        public bool TryUnlockCard(string loreId)
-        {
-            if (string.IsNullOrWhiteSpace(loreId)) return false;
-            if (!_database.TryGetLoreCard(loreId, out LoreCardData card)) return false;
-            if (!IsCardVerified(card)) return false;
-
-            if (!_state.Data.unlockedLoreIds.Contains(loreId))
+            if (Instance == null)
             {
-                _state.Data.unlockedLoreIds.Add(loreId);
-                GameEventBus.RaiseLoreCardUnlocked(loreId);
+                Instance = this;
             }
-            return true;
+            else
+            {
+                Destroy(gameObject);
+            }
         }
 
-        public void GetUnlockedVerifiedCards(List<LoreCardData> outputBuffer)
+        public bool IsUnlocked(string loreId)
         {
-            if (outputBuffer == null) return;
-            outputBuffer.Clear();
-            var ids = _state.Data.unlockedLoreIds;
-            for (int i = 0; i < ids.Count; i++)
+            if (GameState.Instance == null || GameState.Instance.CurrentData == null) return false;
+            return GameState.Instance.CurrentData.unlockedLoreIds.Contains(loreId);
+        }
+
+        public void UnlockLore(string loreId)
+        {
+            if (string.IsNullOrEmpty(loreId)) return;
+            if (GameState.Instance == null || GameState.Instance.CurrentData == null) return;
+
+            if (!GameState.Instance.CurrentData.unlockedLoreIds.Contains(loreId))
             {
-                if (_database.TryGetLoreCard(ids[i], out LoreCardData card) && IsCardVerified(card))
-                {
-                    outputBuffer.Add(card);
-                }
+                GameState.Instance.CurrentData.unlockedLoreIds.Add(loreId);
+                GameState.Instance.SaveCurrentState();
+                Debug.Log($"[TimeMachine] [LoreJournal] Открыта краеведческая справка: {loreId}");
             }
+        }
+
+        public List<string> GetUnlockedLoreIds()
+        {
+            if (GameState.Instance == null || GameState.Instance.CurrentData == null)
+                return new List<string>();
+
+            return new List<string>(GameState.Instance.CurrentData.unlockedLoreIds);
         }
     }
 }
