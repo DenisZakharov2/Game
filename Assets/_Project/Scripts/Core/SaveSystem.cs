@@ -1,9 +1,18 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace TimeMachine.Core
 {
+    [Serializable]
+    public class QuestProgressData
+    {
+        public string questId;
+        public string status; // "NotStarted", "InProgress", "Completed"
+        public int currentStepIndex;
+    }
+
     [Serializable]
     public class SaveDataV1
     {
@@ -11,8 +20,14 @@ namespace TimeMachine.Core
         public string currentQuestId = "q_2027_01";
         public int currentEra = 2027;
         public int playerXP = 0;
-        public string[] completedQuestIds = new string[0];
-        public string[] inventoryItemIds = new string[0];
+        public int totalXp = 0;
+        public bool isZarya7Assembled = false;
+
+        public List<string> completedQuestIds = new List<string>();
+        public List<string> inventoryItemIds = new List<string>();
+        public List<string> unlockedLoreCardIds = new List<string>();
+        public List<QuestProgressData> questProgressList = new List<QuestProgressData>();
+
         public string lastSaveTime = "";
     }
 
@@ -58,7 +73,7 @@ namespace TimeMachine.Core
                     File.Copy(SavePath, BackupPath);
                 }
 
-                // 3. Безопасное замещение основного файла из временного
+                // 3. Замещение основного файла из временного
                 if (File.Exists(SavePath))
                 {
                     File.Delete(SavePath);
@@ -118,13 +133,12 @@ namespace TimeMachine.Core
                     return RestoreFromBackup();
                 }
 
-                // Проверка необходимости миграции схемы
                 if (data.schemaVersion < CURRENT_SCHEMA_VERSION)
                 {
                     data = MigrateSaveData(data, data.schemaVersion, CURRENT_SCHEMA_VERSION);
                 }
 
-                Debug.Log($"[TimeMachine] [SaveSystem] Сохранение загружено. Текущий квест: {data.currentQuestId}, Эпоха: {data.currentEra}");
+                Debug.Log($"[TimeMachine] [SaveSystem] Сохранение загружено. Квест: {data.currentQuestId}, Эпоха: {data.currentEra}, XP: {data.totalXp}");
                 return data;
             }
             catch (Exception ex)
@@ -165,7 +179,6 @@ namespace TimeMachine.Core
             Debug.Log($"[TimeMachine] [SaveSystem] Миграция данных сохранения с версии {oldVersion} до версии {newVersion}...");
             data.schemaVersion = newVersion;
             Save(data);
-            Debug.Log("[TimeMachine] [SaveSystem] Миграция данных успешно завершена.");
             return data;
         }
 
