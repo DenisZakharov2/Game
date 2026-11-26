@@ -28,6 +28,8 @@ namespace TimeMachine.Data
         public int totalXp = 0;
         public bool isZarya7Assembled = false;
         public bool isStoryCompleted = false;
+        public bool lessonFreeModeEnabled = false;
+        public string activeCompanionId = "barni";
         public string savedAtIsoUtc = "";
 
         public List<QuestProgressEntry> quests = new List<QuestProgressEntry>();
