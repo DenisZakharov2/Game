@@ -1,100 +1,116 @@
-﻿using System;
-using TimeMachine.Core;
+using System.Collections.Generic;
+using UnityEngine;
 
 namespace TimeMachine.Data
 {
-    public class GameState
+    public class GameState : MonoBehaviour
     {
-        public SaveDataV1 Data { get; private set; }
+        public static GameState Instance { get; private set; }
 
-        public GameState(SaveDataV1 initialData = null)
+        public SaveDataV1 CurrentData { get; private set; }
+        private SaveSystem _saveSystem;
+
+        private void Awake()
         {
-            Data = initialData ?? CreateNewDefaultState();
-            EnsureInitialized();
+            if (Instance == null)
+            {
+                Instance = this;
+                DontDestroyOnLoad(gameObject);
+                InitializeState();
+            }
+            else
+            {
+                Destroy(gameObject);
+            }
         }
 
-        public static SaveDataV1 CreateNewDefaultState()
+        public void InitializeState()
         {
-            var data = new SaveDataV1
+            _saveSystem = new SaveSystem();
+            CurrentData = _saveSystem.LoadOrCreateDefault();
+            if (CurrentData == null)
             {
-                schemaVersion = GameConstants.GameplayTuning.CurrentSaveSchemaVersion,
-                savedAtIsoUtc = DateTime.UtcNow.ToString("o"),
+                CurrentData = CreateNewDefaultState();
+            }
+        }
+
+        public SaveDataV1 CreateNewDefaultState()
+        {
+            SaveDataV1 data = new SaveDataV1
+            {
+                schemaVersion = SaveSystem.CURRENT_SCHEMA_VERSION,
+                currentQuestId = "q_2027_01",
+                currentEra = 2027,
+                playerXP = 0,
                 totalXp = 0,
                 isZarya7Assembled = false,
                 isStoryCompleted = false,
                 lessonFreeModeEnabled = false,
-                currentEra = "2027",
-                activeCompanionId = GameConstants.CharacterIds.Sasha
+                activeCompanionId = "barni",
+                quests = new List<QuestProgressEntry>(),
+                skills = new List<SkillProgressEntry>(),
+                inventory = new List<string>(),
+                unlockedLoreIds = new List<string>(),
+                completedQuestIds = new List<string>(),
+                attempts = new List<string>()
             };
-
-            for (int i = 0; i < QuestIds.OrderedChain.Length; i++)
-            {
-                data.quests.Add(new QuestProgressEntry
-                {
-                    questId = QuestIds.OrderedChain[i],
-                    status = i == 0 ? QuestStatus.Available : QuestStatus.Locked
-                });
-            }
-
-            foreach (SkillBranch branch in Enum.GetValues(typeof(SkillBranch)))
-            {
-                data.skills.Add(new SkillLevelEntry { branch = branch, level = 0 });
-            }
-
+            SaveSystem.Save(data);
             return data;
         }
 
-        private void EnsureInitialized()
+        public void SaveCurrentState()
         {
-            if (Data.quests == null) Data.quests = new System.Collections.Generic.List<QuestProgressEntry>();
-            if (Data.skills == null) Data.skills = new System.Collections.Generic.List<SkillLevelEntry>();
-            if (Data.inventory == null) Data.inventory = new System.Collections.Generic.List<InventoryItemEntry>();
-            if (Data.unlockedLoreIds == null) Data.unlockedLoreIds = new System.Collections.Generic.List<string>();
-            if (Data.attempts == null) Data.attempts = new System.Collections.Generic.List<AttemptRecord>();
-
-            foreach (SkillBranch branch in Enum.GetValues(typeof(SkillBranch)))
+            if (CurrentData != null)
             {
-                bool found = false;
-                for (int i = 0; i < Data.skills.Count; i++)
-                {
-                    if (Data.skills[i].branch == branch) { found = true; break; }
-                }
-                if (!found) Data.skills.Add(new SkillLevelEntry { branch = branch, level = 0 });
+                SaveSystem.Save(CurrentData);
             }
         }
 
-        public void AddXp(int amount)
+        public void AddXP(int amount)
         {
-            if (amount <= 0) return;
-            Data.totalXp += amount;
-            GameEventBus.RaiseXpChanged(amount, Data.totalXp);
+            if (CurrentData == null) return;
+            CurrentData.playerXP += amount;
+            CurrentData.totalXp += amount;
+            SaveCurrentState();
         }
 
-        public int GetSkillLevel(SkillBranch branch)
+        public void SetCurrentQuest(string questId)
         {
-            for (int i = 0; i < Data.skills.Count; i++)
-            {
-                if (Data.skills[i].branch == branch) return Data.skills[i].level;
-            }
-            return 0;
+            if (CurrentData == null) return;
+            CurrentData.currentQuestId = questId;
+            SaveCurrentState();
         }
 
-        public bool TryUpgradeSkill(SkillBranch branch, int xpCost = GameConstants.GameplayTuning.XpPerSkillLevel)
+        public void SetCurrentEra(int era)
         {
-            if (Data.totalXp < xpCost) return false;
-            for (int i = 0; i < Data.skills.Count; i++)
+            if (CurrentData == null) return;
+            CurrentData.currentEra = era;
+            SaveCurrentState();
+        }
+
+        public void AddInventoryItem(string itemId)
+        {
+            if (CurrentData == null || string.IsNullOrEmpty(itemId)) return;
+            if (!CurrentData.inventory.Contains(itemId))
             {
-                if (Data.skills[i].branch == branch)
-                {
-                    if (Data.skills[i].level >= GameConstants.GameplayTuning.MaxSkillLevel) return false;
-                    Data.totalXp -= xpCost;
-                    Data.skills[i].level++;
-                    GameEventBus.RaiseXpChanged(-xpCost, Data.totalXp);
-                    GameEventBus.RaiseSkillUpgraded(branch, Data.skills[i].level);
-                    return true;
-                }
+                CurrentData.inventory.Add(itemId);
+                SaveCurrentState();
             }
-            return false;
+        }
+
+        public void UpdateSkillProgress(string skillId, int level)
+        {
+            if (CurrentData == null || string.IsNullOrEmpty(skillId)) return;
+            var entry = CurrentData.skills.Find(s => s.skillId == skillId);
+            if (entry != null)
+            {
+                entry.level = level;
+            }
+            else
+            {
+                CurrentData.skills.Add(new SkillProgressEntry { skillId = skillId, level = level });
+            }
+            SaveCurrentState();
         }
     }
 }
