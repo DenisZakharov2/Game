@@ -6,16 +6,16 @@ namespace TimeMachine.Data
     [Serializable]
     public class QuestProgressEntry
     {
-        public string questId = "";
-        public string status = "NotStarted"; // "NotStarted", "InProgress", "Completed"
-        public int currentStepIndex = 0;
+        public string questId;
+        public string status; // "NotStarted", "InProgress", "Completed"
+        public int currentStepIndex;
     }
 
     [Serializable]
     public class SkillProgressEntry
     {
-        public string skillId = "";
-        public int level = 1;
+        public string skillId;
+        public int level;
     }
 
     [Serializable]
@@ -23,7 +23,7 @@ namespace TimeMachine.Data
     {
         public int schemaVersion = 1;
         public string currentQuestId = "q_2027_01";
-        public int currentEra = 2027; // Числовой тип int
+        public int currentEra = 2027;
         public int playerXP = 0;
         public int totalXp = 0;
         public bool isZarya7Assembled = false;
