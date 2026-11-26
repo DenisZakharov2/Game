@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace TimeMachine.Gameplay
@@ -13,8 +12,8 @@ namespace TimeMachine.Gameplay
         [SerializeField] private AudioSource sfxSource;
 
         [Header("Music Settings")]
-        [Range(0f, 1f)] [SerializeField] private float defaultMusicVolume = 0.15f; // Тихая фоновая музыка
-        [Range(0f, 1f)] [SerializeField] private float duckedMusicVolume = 0.04f;  // Приглушение (-18 дБ) при решении задач
+        [Range(0f, 1f)] [SerializeField] private float defaultMusicVolume = 0.15f;
+        [Range(0f, 1f)] [SerializeField] private float duckedMusicVolume = 0.04f;
         [SerializeField] private float fadeDuration = 0.8f;
 
         private Coroutine fadeCoroutine;
@@ -44,7 +43,9 @@ namespace TimeMachine.Gameplay
             sfxSource.playOnAwake = false;
         }
 
-        public void PlayMusic(AudioClip clip)
+        public void PlayMusic(AudioClip clip) => PlayBackgroundMusic(clip);
+
+        public void PlayBackgroundMusic(AudioClip clip)
         {
             if (clip == null || musicSource.clip == clip) return;
             musicSource.clip = clip;
@@ -52,9 +53,11 @@ namespace TimeMachine.Gameplay
             musicSource.Play();
         }
 
-        public void SetTaskDucking(bool isTaskActive)
+        public void SetTaskDucking(bool isTaskActive) => SetMusicDucked(isTaskActive);
+
+        public void SetMusicDucked(bool isDucked)
         {
-            float targetVolume = isTaskActive ? duckedMusicVolume : defaultMusicVolume;
+            float targetVolume = isDucked ? duckedMusicVolume : defaultMusicVolume;
             if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
             fadeCoroutine = StartCoroutine(FadeVolume(targetVolume));
         }
