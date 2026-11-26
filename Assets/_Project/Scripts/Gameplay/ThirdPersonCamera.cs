@@ -1,138 +1,70 @@
 using UnityEngine;
-using TimeMachine.Core;
 
 namespace TimeMachine.Gameplay
 {
     public class ThirdPersonCamera : MonoBehaviour
     {
-        [Header("Target & Framing (9:16 Portrait)")]
+        [Header("Target & Offset")]
         [SerializeField] private Transform target;
-        [SerializeField] private TouchInput touchInput;
-        [SerializeField] private float defaultPitch = GameConstants.GameplayTuning.CameraPitch;
-        [SerializeField] private float defaultDistance = GameConstants.GameplayTuning.CameraDistance;
-        [SerializeField] private float pivotHeight = GameConstants.GameplayTuning.CameraHeight;
+        [SerializeField] private Vector3 targetOffset = new Vector3(0f, 1.5f, 0f);
+        [SerializeField] private float distance = 4.5f;
 
-        [Header("Rotation & SpringArm")]
-        [SerializeField] private float yawSensitivity = 0.22f;
-        [SerializeField] private float pitchSensitivity = 0.14f;
-        [SerializeField] private float minPitch = 6f;
-        [SerializeField] private float maxPitch = 34f;
-        [SerializeField] private float sphereCastRadius = 0.25f;
-        [SerializeField] private float minWallDistance = 1.1f;
-        [SerializeField] private LayerMask collisionMask = ~0;
+        [Header("Camera Angles (Portrait 9:16)")]
+        [SerializeField] private float pitch = 25f;
+        [SerializeField] private float yaw = 0f;
 
-        private float _yaw;
-        private float _pitch;
-        private float _currentDistance;
-        private readonly RaycastHit[] _hitBuffer = new RaycastHit[8];
+        [Header("Smoothing & Collision")]
+        [SerializeField] private float smoothSpeed = 12f;
+        [SerializeField] private LayerMask collisionLayers;
+        [SerializeField] private float sphereCastRadius = 0.2f;
 
-        private void Awake()
-        {
-            _pitch = defaultPitch;
-            _currentDistance = defaultDistance;
-            ResolveReferences();
-        }
+        private readonly RaycastHit[] hitBuffer = new RaycastHit[1];
 
         private void Start()
         {
-            ResolveReferences();
+            ValidateTarget();
         }
 
-        private void ResolveReferences()
+        /// <summary>
+        /// Явное назначение цели слежения без вызова FindWithTag во время игры.
+        /// </summary>
+        public void SetTarget(Transform newTarget)
         {
-            if (touchInput == null)
-            {
-                touchInput = FindAnyObjectByType<TouchInput>();
-            }
+            target = newTarget;
+        }
+
+        private void ValidateTarget()
+        {
             if (target == null)
             {
-                GameObject playerGo = GameObject.FindWithTag("Player");
-                if (playerGo != null)
-                {
-                    SetTarget(playerGo.transform);
-                }
+#if UNITY_EDITOR
+                Debug.LogWarning("[ThirdPersonCamera] Цель (target) не назначена! Поиск игрока по тегу в Editor fallback.", this);
+                GameObject playerObj = GameObject.FindWithTag("Player");
+                if (playerObj != null) target = playerObj.transform;
+#else
+                Debug.LogError("[ThirdPersonCamera] КРИТИЧЕСКАЯ ОШИБКА: Цель (target) не установлена!", this);
+#endif
             }
-        }
-
-        private void OnEnable()
-        {
-            GameEventBus.OnPlayerTeleported += HandlePlayerTeleported;
-        }
-
-        private void OnDisable()
-        {
-            GameEventBus.OnPlayerTeleported -= HandlePlayerTeleported;
-        }
-
-        public void SetTarget(Transform playerTransform)
-        {
-            target = playerTransform;
-            if (target != null)
-            {
-                _yaw = target.eulerAngles.y;
-            }
-        }
-
-        public void SetTouchInput(TouchInput input)
-        {
-            touchInput = input;
-        }
-
-        private void HandlePlayerTeleported(Vector3 pos, float yaw)
-        {
-            _yaw = yaw;
-            _pitch = defaultPitch;
-            _currentDistance = defaultDistance;
         }
 
         private void LateUpdate()
         {
-            if (target == null)
+            if (target == null) return;
+
+            Vector3 targetPosition = target.position + targetOffset;
+            Quaternion rotation = Quaternion.Euler(pitch, yaw, 0f);
+            Vector3 desiredPosition = targetPosition - (rotation * Vector3.forward * distance);
+
+            // Проверка коллизий со статическими объектами без выделения памяти (NonAlloc)
+            Vector3 rayDirection = desiredPosition - targetPosition;
+            float rayDistance = rayDirection.magnitude;
+
+            if (Physics.SphereCastNonAlloc(targetPosition, sphereCastRadius, rayDirection.normalized, hitBuffer, rayDistance, collisionLayers) > 0)
             {
-                return;
+                desiredPosition = targetPosition + (rayDirection.normalized * Mathf.Max(hitBuffer[0].distance - 0.1f, 1f));
             }
 
-            if (touchInput != null)
-            {
-                Vector2 lookDelta = touchInput.ConsumeLookDelta();
-                _yaw += lookDelta.x * yawSensitivity;
-                _pitch = Mathf.Clamp(_pitch - lookDelta.y * pitchSensitivity, minPitch, maxPitch);
-            }
-
-            Vector3 pivot = target.position + Vector3.up * pivotHeight;
-            Quaternion rotation = Quaternion.Euler(_pitch, _yaw, 0f);
-            Vector3 desiredDirection = -(rotation * Vector3.forward);
-
-            float safeDistance = defaultDistance;
-            int hitCount = Physics.SphereCastNonAlloc(
-                pivot,
-                sphereCastRadius,
-                desiredDirection,
-                _hitBuffer,
-                defaultDistance,
-                collisionMask,
-                QueryTriggerInteraction.Ignore);
-
-            for (int i = 0; i < hitCount; i++)
-            {
-                Collider col = _hitBuffer[i].collider;
-                if (col == null || col.transform == target || col.transform.IsChildOf(target))
-                {
-                    continue;
-                }
-                if (_hitBuffer[i].distance <= 0.001f)
-                {
-                    continue;
-                }
-                float dist = Mathf.Max(minWallDistance, _hitBuffer[i].distance - 0.15f);
-                if (dist < safeDistance)
-                {
-                    safeDistance = dist;
-                }
-            }
-
-            _currentDistance = Mathf.Lerp(_currentDistance, safeDistance, 14f * Time.deltaTime);
-            transform.position = pivot + desiredDirection * _currentDistance;
+            transform.position = Vector3.Lerp(transform.position, desiredPosition, smoothSpeed * Time.deltaTime);
             transform.rotation = rotation;
         }
     }
