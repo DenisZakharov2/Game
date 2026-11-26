@@ -1,37 +1,11 @@
 using System;
 using System.IO;
-using System.Collections.Generic;
 using UnityEngine;
+using TimeMachine.Data;
 
 namespace TimeMachine.Core
 {
-    [Serializable]
-    public class QuestProgressData
-    {
-        public string questId;
-        public string status; // "NotStarted", "InProgress", "Completed"
-        public int currentStepIndex;
-    }
-
-    [Serializable]
-    public class SaveDataV1
-    {
-        public int schemaVersion = 1;
-        public string currentQuestId = "q_2027_01";
-        public int currentEra = 2027;
-        public int playerXP = 0;
-        public int totalXp = 0;
-        public bool isZarya7Assembled = false;
-
-        public List<string> completedQuestIds = new List<string>();
-        public List<string> inventoryItemIds = new List<string>();
-        public List<string> unlockedLoreCardIds = new List<string>();
-        public List<QuestProgressData> questProgressList = new List<QuestProgressData>();
-
-        public string lastSaveTime = "";
-    }
-
-    public static class SaveSystem
+    public class SaveSystem
     {
         public const int CURRENT_SCHEMA_VERSION = 1;
         private static readonly string SaveFileName = "savegame.json";
@@ -43,7 +17,15 @@ namespace TimeMachine.Core
         private static string BackupPath => Path.Combine(Application.persistentDataPath, BackupFileName);
 
         /// <summary>
-        /// Атомарная запись данных сохранения через .tmp файл с созданием резервной копии.
+        /// Экземплярный метод для вызова из GameBootstrap / GameState.
+        /// </summary>
+        public SaveDataV1 LoadOrCreateDefault()
+        {
+            return Load();
+        }
+
+        /// <summary>
+        /// Атомарное сохранение данных игрока.
         /// </summary>
         public static bool Save(SaveDataV1 data)
         {
@@ -56,14 +38,14 @@ namespace TimeMachine.Core
             try
             {
                 data.schemaVersion = CURRENT_SCHEMA_VERSION;
-                data.lastSaveTime = DateTime.UtcNow.ToString("o");
+                data.savedAtIsoUtc = DateTime.UtcNow.ToString("o");
 
                 string json = JsonUtility.ToJson(data, true);
 
                 // 1. Запись во временный файл
                 File.WriteAllText(TempPath, json);
 
-                // 2. Создание бэкапа существующего файла сохранения
+                // 2. Создание резервной копии
                 if (File.Exists(SavePath))
                 {
                     if (File.Exists(BackupPath))
@@ -81,7 +63,7 @@ namespace TimeMachine.Core
                 File.Move(TempPath, SavePath);
 
                 long fileSizeBytes = new FileInfo(SavePath).Length;
-                Debug.Log($"[TimeMachine] [SaveSystem] Успешное сохранение! Путь: {SavePath} | Размер: {fileSizeBytes} байт | Схема v{data.schemaVersion}");
+                Debug.Log($"[TimeMachine] [SaveSystem] Успешно сохранено! Путь: {SavePath} | Размер: {fileSizeBytes} байт | Квест: {data.currentQuestId}");
                 return true;
             }
             catch (Exception ex)
@@ -96,7 +78,7 @@ namespace TimeMachine.Core
         }
 
         /// <summary>
-        /// Загрузка данных с автоматической проверкой целостности, восстановлением из бэкапа и миграцией.
+        /// Чтение данных с автоматическим восстановлением из бэкапа.
         /// </summary>
         public static SaveDataV1 Load()
         {
@@ -104,7 +86,7 @@ namespace TimeMachine.Core
             {
                 if (File.Exists(BackupPath))
                 {
-                    Debug.LogWarning("[TimeMachine] [SaveSystem] Основной файл сохранения отсутствует, восстановление из бэкапа...");
+                    Debug.LogWarning("[TimeMachine] [SaveSystem] Основной файл отсутствует, восстановление из .bak...");
                     try
                     {
                         File.Copy(BackupPath, SavePath);
@@ -117,7 +99,7 @@ namespace TimeMachine.Core
                 }
                 else
                 {
-                    Debug.Log("[TimeMachine] [SaveSystem] Файл сохранения не обнаружен. Создаётся новое сохранение.");
+                    Debug.Log("[TimeMachine] [SaveSystem] Сохранение не найдено. Создание нового профиля.");
                     return CreateNewSave();
                 }
             }
@@ -129,21 +111,16 @@ namespace TimeMachine.Core
 
                 if (data == null)
                 {
-                    Debug.LogError("[TimeMachine] [SaveSystem] Данные сохранения повреждены или пусты.");
+                    Debug.LogError("[TimeMachine] [SaveSystem] Файл сохранения повреждён.");
                     return RestoreFromBackup();
                 }
 
-                if (data.schemaVersion < CURRENT_SCHEMA_VERSION)
-                {
-                    data = MigrateSaveData(data, data.schemaVersion, CURRENT_SCHEMA_VERSION);
-                }
-
-                Debug.Log($"[TimeMachine] [SaveSystem] Сохранение загружено. Квест: {data.currentQuestId}, Эпоха: {data.currentEra}, XP: {data.totalXp}");
+                Debug.Log($"[TimeMachine] [SaveSystem] Сохранение загружено. Эпоха: {data.currentEra}, Квест: {data.currentQuestId}, XP: {data.totalXp}");
                 return data;
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[TimeMachine] [SaveSystem] Исключение при чтении файла сохранения: {ex.Message}");
+                Debug.LogError($"[TimeMachine] [SaveSystem] Ошибка чтения сохранения: {ex.Message}");
                 return RestoreFromBackup();
             }
         }
@@ -152,7 +129,6 @@ namespace TimeMachine.Core
         {
             if (File.Exists(BackupPath))
             {
-                Debug.LogWarning("[TimeMachine] [SaveSystem] Попытка загрузки данных из резервной копии .bak...");
                 try
                 {
                     string json = File.ReadAllText(BackupPath);
@@ -161,7 +137,7 @@ namespace TimeMachine.Core
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogError($"[TimeMachine] [SaveSystem] Не удалось прочитать бэкап: {ex.Message}");
+                    Debug.LogError($"[TimeMachine] [SaveSystem] Ошибка бэкапа: {ex.Message}");
                 }
             }
             return CreateNewSave();
@@ -174,14 +150,6 @@ namespace TimeMachine.Core
             return newData;
         }
 
-        private static SaveDataV1 MigrateSaveData(SaveDataV1 data, int oldVersion, int newVersion)
-        {
-            Debug.Log($"[TimeMachine] [SaveSystem] Миграция данных сохранения с версии {oldVersion} до версии {newVersion}...");
-            data.schemaVersion = newVersion;
-            Save(data);
-            return data;
-        }
-
         public static bool DeleteSave()
         {
             try
@@ -189,12 +157,12 @@ namespace TimeMachine.Core
                 if (File.Exists(SavePath)) File.Delete(SavePath);
                 if (File.Exists(BackupPath)) File.Delete(BackupPath);
                 if (File.Exists(TempPath)) File.Delete(TempPath);
-                Debug.Log("[TimeMachine] [SaveSystem] Файлы сохранений удалены.");
+                Debug.Log("[TimeMachine] [SaveSystem] Сохранения успешно удалены.");
                 return true;
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[TimeMachine] [SaveSystem] Ошибка при удалении файлов сохранения: {ex.Message}");
+                Debug.LogError($"[TimeMachine] [SaveSystem] Ошибка при удалении: {ex.Message}");
                 return false;
             }
         }
