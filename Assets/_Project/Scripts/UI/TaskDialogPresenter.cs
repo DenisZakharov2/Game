@@ -40,7 +40,7 @@ namespace TimeMachine.UI
 
             if (AudioManager.Instance != null)
             {
-                AudioManager.Instance.SetTaskDucking(true);
+                AudioManager.Instance.SetMusicDucked(true);
             }
         }
 
@@ -50,7 +50,7 @@ namespace TimeMachine.UI
 
             if (AudioManager.Instance != null)
             {
-                AudioManager.Instance.SetTaskDucking(false);
+                AudioManager.Instance.SetMusicDucked(false);
             }
         }
 
