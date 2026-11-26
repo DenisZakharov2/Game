@@ -1,170 +1,108 @@
-﻿using TMPro;
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
-using TimeMachine.Core;
 using TimeMachine.Data;
-using TimeMachine.Education;
 using TimeMachine.Gameplay;
 
 namespace TimeMachine.UI
 {
     public class EpilogueSummaryPresenter : MonoBehaviour
     {
-        [Header("Root & Summary Texts (9:16, No Grades 2 or 3)")]
-        [SerializeField] private GameObject rootPanel;
-        [SerializeField] private TMP_Text epilogueTitleText;
-        [SerializeField] private TMP_Text epilogueStoryText;
-        [SerializeField] private TMP_Text statsSummaryText;
+        [Header("UI References")]
+        [SerializeField] private TMP_Text totalXpText;
+        [SerializeField] private TMP_Text loreCountText;
+        [SerializeField] private TMP_Text correctTasksText;
+        [SerializeField] private Button continueFreeRoamButton;
+        [SerializeField] private GameObject epilogueRoot;
 
-        [Header("Action Buttons (>= 48 dp)")]
-        [SerializeField] private Button enterFreeRoamButton;
-        [SerializeField] private Button openPassportReportButton;
-        [SerializeField] private Button mainMenuButton;
-
-        private GameState _gameState;
-        private LoreJournal _loreJournal;
-        private FreeRoamController _freeRoamController;
-        private JournalPresenter _journalPresenter;
-        private SaveSystem _saveSystem;
+        [Header("Controllers")]
+        [SerializeField] private FreeRoamController freeRoamController;
 
         private void Awake()
         {
-            if (enterFreeRoamButton != null)
+            if (continueFreeRoamButton != null)
             {
-                TouchInput.EnforceMinTouchSizeDp(enterFreeRoamButton.GetComponent<RectTransform>());
-                enterFreeRoamButton.onClick.AddListener(OnEnterFreeRoamClicked);
+                continueFreeRoamButton.onClick.AddListener(OnContinueFreeRoamClicked);
             }
-            if (openPassportReportButton != null)
-            {
-                TouchInput.EnforceMinTouchSizeDp(openPassportReportButton.GetComponent<RectTransform>());
-                openPassportReportButton.onClick.AddListener(OnOpenPassportClicked);
-            }
-            if (mainMenuButton != null)
-            {
-                TouchInput.EnforceMinTouchSizeDp(mainMenuButton.GetComponent<RectTransform>());
-                mainMenuButton.onClick.AddListener(OnMainMenuClicked);
-            }
-            if (rootPanel != null)
-            {
-                rootPanel.SetActive(false);
-            }
-        }
-
-        public void BindSystems(
-            GameState state,
-            LoreJournal loreJournal,
-            FreeRoamController freeRoam,
-            JournalPresenter journal,
-            SaveSystem saveSystem)
-        {
-            _gameState = state;
-            _loreJournal = loreJournal;
-            _freeRoamController = freeRoam;
-            _journalPresenter = journal;
-            _saveSystem = saveSystem;
-        }
-
-        public void ConfigureUiReferences(
-            GameObject root,
-            TMP_Text titleText,
-            TMP_Text storyText,
-            TMP_Text statsText,
-            Button freeRoamBtn,
-            Button passportBtn,
-            Button menuBtn)
-        {
-            rootPanel = root;
-            epilogueTitleText = titleText;
-            epilogueStoryText = storyText;
-            statsSummaryText = statsText;
-            enterFreeRoamButton = freeRoamBtn;
-            openPassportReportButton = passportBtn;
-            mainMenuButton = menuBtn;
         }
 
         public void ShowEpilogue()
         {
-            if (rootPanel != null)
+            if (epilogueRoot != null)
             {
-                rootPanel.SetActive(true);
-            }
-            if (AudioManager.Instance != null)
-            {
-                AudioManager.Instance.PlayMusic("MUS-05", 1.2f);
-                AudioManager.Instance.PlaySfx("SFX-74");
+                epilogueRoot.SetActive(true);
             }
 
-            if (epilogueTitleText != null)
+            UpdateSummaryView();
+        }
+
+        private void UpdateSummaryView()
+        {
+            if (GameState.Instance == null || GameState.Instance.CurrentData == null)
             {
-                epilogueTitleText.SetText("Приключение завершено: будущее спасено!");
-            }
-            if (epilogueStoryText != null)
-            {
-                epilogueStoryText.SetText(
-                    "Взрослая Соня-2040 благополучно вернулась в 2040 год, а Соня-2027 с памятным значком юного инженера " +
-                    "вернулась к семейному ужину в ЖК «ЗимаЛето» (пр. Энергетиков, д. 9, корп. 6).");
+                Debug.LogWarning("[TimeMachine] [EpilogueSummaryPresenter] GameState.Instance или CurrentData не проинициализированы!");
+                return;
             }
 
-            int totalXp = _gameState != null && _gameState.Data != null ? _gameState.Data.totalXp : 2220;
-            int solvedTasks = 0;
-            if (_gameState != null && _gameState.Data != null && _gameState.Data.attempts != null)
+            var data = GameState.Instance.CurrentData;
+
+            // 1. Общий накопленный опыт (XP)
+            if (totalXpText != null)
             {
-                for (int i = 0; i < _gameState.Data.attempts.Count; i++)
+                totalXpText.text = $"Всего XP: {data.totalXp}";
+            }
+
+            // 2. Открытые карточки краеведческого лора
+            if (loreCountText != null)
+            {
+                int unlockedLoreCount = data.unlockedLoreIds != null ? data.unlockedLoreIds.Count : 0;
+                loreCountText.text = $"Открыто карточек лора: {unlockedLoreCount} / 25";
+            }
+
+            // 3. Разбор текстовой записи попыток: "timestamp|taskKey|answer|isCorrect"
+            if (correctTasksText != null)
+            {
+                int correctCount = CalculateCorrectAttempts(data.attempts);
+                correctTasksText.text = $"Решено задач ФГОС: {correctCount}";
+            }
+        }
+
+        private int CalculateCorrectAttempts(System.Collections.Generic.List<string> attempts)
+        {
+            if (attempts == null) return 0;
+
+            int correctCount = 0;
+            foreach (string record in attempts)
+            {
+                if (string.IsNullOrEmpty(record)) continue;
+
+                string[] parts = record.Split('|');
+                if (parts.Length >= 4 && bool.TryParse(parts[3], out bool isCorrect) && isCorrect)
                 {
-                    if (_gameState.Data.attempts[i].isCorrect)
-                    {
-                        solvedTasks++;
-                    }
+                    correctCount++;
                 }
             }
-            int loreUnlocked = _gameState != null && _gameState.Data != null && _gameState.Data.unlockedLoreIds != null
-                ? _gameState.Data.unlockedLoreIds.Count
-                : 0;
-
-            if (statsSummaryText != null)
-            {
-                statsSummaryText.SetText(
-                    "• Пройдено глав: 6 из 6 (квесты Q-01 – Q-24)\n" +
-                    "• Накоплено опыта: {0} XP\n" +
-                    "• Решено заданий 4 класса ФГОС: {1}\n" +
-                    "• Открыто карточек «Паспорта места»: {2} из 25",
-                    totalXp,
-                    solvedTasks,
-                    loreUnlocked);
-            }
+            return correctCount;
         }
 
-        private void OnEnterFreeRoamClicked()
+        private void OnContinueFreeRoamClicked()
         {
-            if (rootPanel != null)
+            if (GameState.Instance != null && GameState.Instance.CurrentData != null)
             {
-                rootPanel.SetActive(false);
+                GameState.Instance.CurrentData.isStoryCompleted = true;
+                GameState.Instance.CurrentData.lessonFreeModeEnabled = true;
+                GameState.Instance.SaveCurrentState();
             }
-            if (_freeRoamController != null)
-            {
-                _freeRoamController.ActivateFreeRoam();
-            }
-        }
 
-        private void OnOpenPassportClicked()
-        {
-            OnEnterFreeRoamClicked();
-            if (_journalPresenter != null)
+            if (epilogueRoot != null)
             {
-                _journalPresenter.OpenJournal();
-                _journalPresenter.ShowParentReportTab();
+                epilogueRoot.SetActive(false);
             }
-        }
 
-        private void OnMainMenuClicked()
-        {
-            if (_saveSystem != null && _gameState != null && _gameState.Data != null)
+            if (freeRoamController != null)
             {
-                _saveSystem.Save(_gameState.Data);
-            }
-            if (rootPanel != null)
-            {
-                rootPanel.SetActive(false);
+                freeRoamController.SetScanningActive(true);
+                Debug.Log("[TimeMachine] [EpilogueSummaryPresenter] Свободный режим исследования (Free-Roam) активирован!");
             }
         }
     }
