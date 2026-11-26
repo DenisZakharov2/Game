@@ -1,141 +1,82 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.AI;
-using TimeMachine.Core;
 
 namespace TimeMachine.Gameplay
 {
+    [RequireComponent(typeof(NavMeshAgent))]
     public class CompanionController : MonoBehaviour
     {
-        [Header("Identity & Following")]
-        [SerializeField] private string characterId = GameConstants.CharacterIds.Sasha;
-        [SerializeField] private Transform followTarget;
-        [SerializeField] private float desiredFollowDistance = 2.0f;
-        [SerializeField] private float teleportCatchupDistance = 22.0f;
-        [SerializeField] private float repathInterval = 0.25f;
+        [Header("Follow Settings")]
+        [SerializeField] private Transform targetToFollow;
+        [SerializeField] private float stoppingDistance = 2.2f;
+        [SerializeField] private float followSpeed = 3.8f;
+        [SerializeField] private float updateInterval = 0.2f;
 
-        [Header("Guiding Hints (Never Reveals Direct Answer)")]
-        [SerializeField] private string[] guidingHints = new string[]
-        {
-            "Посмотри на единицы измерения в условии — переведи всё в одинаковые величины!",
-            "Проверь состав слова или орфограмму по правилу 4 класса, не торопись.",
-            "Сверь ориентир с запиской из 1950 года или «Компасом поколений»!"
-        };
-
-        private NavMeshAgent _agent;
-        private float _repathTimer;
-        private int _hintIndex;
-
-        public string CharacterId => characterId;
+        private NavMeshAgent navAgent;
+        private float nextUpdateTime;
 
         private void Awake()
         {
-            _agent = GetComponent<NavMeshAgent>();
-            if (_agent != null)
+            navAgent = GetComponent<NavMeshAgent>();
+            if (navAgent != null)
             {
-                _agent.stoppingDistance = desiredFollowDistance;
-                _agent.speed = 3.1f;
+                navAgent.stoppingDistance = stoppingDistance;
+                navAgent.speed = followSpeed;
             }
         }
 
-        private void OnEnable()
+        private void Start()
         {
-            GameEventBus.OnPlayerTeleported += HandlePlayerTeleported;
+            ValidateTarget();
         }
 
-        private void OnDisable()
+        public void Initialize(Transform target)
         {
-            GameEventBus.OnPlayerTeleported -= HandlePlayerTeleported;
+            targetToFollow = target;
         }
 
-        public void SetFollowTarget(Transform target)
+        private void ValidateTarget()
         {
-            followTarget = target;
-        }
-
-        public void SetCharacterId(string id)
-        {
-            characterId = id;
-        }
-
-        public void SpeakGuidingHint()
-        {
-            if (characterId == GameConstants.CharacterIds.Barni)
+            if (targetToFollow == null)
             {
-                GameEventBus.RaiseCompanionSpeak(characterId, "Гав-гав! (Барни радостно виляет хвостом и смотрит в сторону подсказки.)");
-                if (AudioManager.Instance != null)
-                {
-                    AudioManager.Instance.PlayVoiceCue(characterId);
-                }
-                return;
-            }
-
-            if (characterId == GameConstants.CharacterIds.Zhulik)
-            {
-                GameEventBus.RaiseCompanionSpeak(characterId, "Мяу-рр... (Кот Жулик щурится на солнце и мягко шевелит ушами.)");
-                if (AudioManager.Instance != null)
-                {
-                    AudioManager.Instance.PlayVoiceCue(characterId);
-                }
-                return;
-            }
-
-            if (guidingHints == null || guidingHints.Length == 0)
-            {
-                return;
-            }
-
-            string hint = guidingHints[_hintIndex % guidingHints.Length];
-            _hintIndex++;
-            GameEventBus.RaiseCompanionSpeak(characterId, hint);
-            if (AudioManager.Instance != null)
-            {
-                AudioManager.Instance.PlayVoiceCue(characterId);
-            }
-        }
-
-        private void HandlePlayerTeleported(Vector3 targetPos, float targetYaw)
-        {
-            Vector3 offset = targetPos - Vector3.forward * 1.4f + Vector3.right * 1.1f;
-            if (_agent != null && _agent.enabled && NavMesh.SamplePosition(offset, out NavMeshHit hit, 4f, NavMesh.AllAreas))
-            {
-                _agent.Warp(hit.position);
-            }
-            else
-            {
-                transform.position = offset;
+#if UNITY_EDITOR
+                Debug.LogWarning("[TimeMachine] [CompanionController] Цель слежения не назначена. Fallback поиск игрока в Editor.", this);
+                GameObject playerObj = GameObject.FindWithTag("Player");
+                if (playerObj != null) targetToFollow = playerObj.transform;
+#else
+                Debug.LogError("[TimeMachine] [CompanionController] КРИТИЧЕСКАЯ ОШИБКА: Цель слежения (targetToFollow) не установлена!", this);
+#endif
             }
         }
 
         private void Update()
         {
-            if (followTarget == null || _agent == null || !_agent.enabled || !_agent.isOnNavMesh)
-            {
-                return;
-            }
+            if (targetToFollow == null || navAgent == null || !navAgent.isOnNavMesh) return;
 
-            _repathTimer += Time.deltaTime;
-            if (_repathTimer < repathInterval)
+            if (Time.time >= nextUpdateTime)
             {
-                return;
-            }
-            _repathTimer = 0f;
-
-            Vector3 diff = followTarget.position - transform.position;
-            float sqrDist = diff.sqrMagnitude;
-
-            if (sqrDist > teleportCatchupDistance * teleportCatchupDistance)
-            {
-                Vector3 nearPlayer = followTarget.position - followTarget.forward * desiredFollowDistance;
-                if (NavMesh.SamplePosition(nearPlayer, out NavMeshHit hit, 4f, NavMesh.AllAreas))
+                nextUpdateTime = Time.time + updateInterval;
+                
+                float sqrDistance = (targetToFollow.position - transform.position).sqrMagnitude;
+                if (sqrDistance > stoppingDistance * stoppingDistance)
                 {
-                    _agent.Warp(hit.position);
+                    navAgent.SetDestination(targetToFollow.position);
                 }
-                return;
             }
+        }
 
-            if (sqrDist > desiredFollowDistance * desiredFollowDistance)
+        /// <summary>
+        /// Безопасная телепортация спутника при переходе между эпохами или локациями.
+        /// </summary>
+        public void TeleportTo(Vector3 position)
+        {
+            if (navAgent != null && navAgent.isOnNavMesh)
             {
-                _agent.SetDestination(followTarget.position);
+                navAgent.Warp(position);
+            }
+            else
+            {
+                transform.position = position;
             }
         }
     }
