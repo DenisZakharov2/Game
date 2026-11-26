@@ -1,86 +1,48 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
+using UnityEngine;
 using TimeMachine.Data;
 
 namespace TimeMachine.Education
 {
-    public struct TaskEvaluationResult
+    public class TaskEngine : MonoBehaviour
     {
-        public bool isCorrect;
-        public string feedback;
-        public string explanation;
-    }
+        public static TaskEngine Instance { get; private set; }
 
-    public class TaskEngine
-    {
-        private readonly GameState _state;
-
-        public TaskEngine(GameState state)
+        private void Awake()
         {
-            _state = state;
+            if (Instance == null)
+            {
+                Instance = this;
+            }
+            else
+            {
+                Destroy(gameObject);
+            }
         }
 
-        public TaskEvaluationResult Evaluate(TaskData task, string rawAnswer, int hintsUsed, bool lessonFreeMode)
+        public bool ValidateAnswer(string taskKey, string userAnswer, string expectedAnswer)
         {
-            if (task == null)
+            bool isCorrect = AnswerNormalizer.CompareAnswers(userAnswer, expectedAnswer);
+            
+            RecordAttempt(taskKey, userAnswer, isCorrect);
+
+            if (isCorrect && GameState.Instance != null)
             {
-                return new TaskEvaluationResult { isCorrect = false, feedback = "Задача не найдена.", explanation = string.Empty };
+                GameState.Instance.AddXP(10);
             }
 
-            bool matched = lessonFreeMode || CheckAnswerMatch(task, rawAnswer);
-
-            if (_state != null && _state.Data != null)
-            {
-                _state.Data.attempts.Add(new AttemptRecord
-                {
-                    taskId = task.id,
-                    fgosTopic = task.fgosTopic ?? string.Empty,
-                    subject = task.subject ?? string.Empty,
-                    submittedAnswer = rawAnswer ?? string.Empty,
-                    isCorrect = matched,
-                    hintsUsed = hintsUsed,
-                    lessonFreeMode = lessonFreeMode
-                });
-            }
-
-            return new TaskEvaluationResult
-            {
-                isCorrect = matched,
-                feedback = matched ? "Отлично! Ответ верный." : "Попробуй ещё раз или открой подсказку!",
-                explanation = task.explanation ?? string.Empty
-            };
+            return isCorrect;
         }
 
-        private static bool CheckAnswerMatch(TaskData task, string rawAnswer)
+        private void RecordAttempt(string taskKey, string answer, bool isCorrect)
         {
-            if (string.IsNullOrWhiteSpace(rawAnswer)) return false;
+            if (GameState.Instance == null || GameState.Instance.CurrentData == null) return;
 
-            string mode = string.IsNullOrWhiteSpace(task.answerType) ? "text" : task.answerType;
-            string normUser = AnswerNormalizer.Normalize(rawAnswer, mode);
-            string normExpected = AnswerNormalizer.Normalize(task.correctAnswer, mode);
-
-            if (!string.IsNullOrEmpty(normUser) && string.Equals(normUser, normExpected, StringComparison.Ordinal))
-            {
-                return true;
-            }
-
-            if (mode == "choice" && normUser.Length == 1 && normExpected.StartsWith(normUser + ")", StringComparison.Ordinal))
-            {
-                return true;
-            }
-
-            if (task.acceptedVariants != null)
-            {
-                for (int i = 0; i < task.acceptedVariants.Length; i++)
-                {
-                    string normVar = AnswerNormalizer.Normalize(task.acceptedVariants[i], mode);
-                    if (!string.IsNullOrEmpty(normUser) && string.Equals(normUser, normVar, StringComparison.Ordinal))
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
+            string record = $"{DateTime.UtcNow:o}|{taskKey}|{answer}|{isCorrect}";
+            GameState.Instance.CurrentData.attempts.Add(record);
+            GameState.Instance.SaveCurrentState();
+            Debug.Log($"[TimeMachine] [TaskEngine] Записана попытка решения задачи [{taskKey}]: {(isCorrect ? "Успешно" : "Ошибка")}");
         }
     }
 }
